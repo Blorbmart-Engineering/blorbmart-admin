@@ -1,0 +1,286 @@
+import {
+  Bell,
+  ChartColumnBig,
+  CreditCard,
+  FileText,
+  LayoutDashboard,
+  MapPinned,
+  Package,
+  Settings,
+  ShieldCheck,
+  ShoppingCart,
+  Star,
+  Store,
+  TicketPercent,
+  Truck,
+  Users,
+} from 'lucide-react'
+
+export const overviewStats = [
+  { label: 'Total Users', value: '24,580', change: '+8.4%' },
+  { label: 'Total Sellers', value: '1,284', change: '+42 pending' },
+  { label: 'Total Riders', value: '326', change: '+18 verified' },
+  { label: 'Total Orders', value: '8,942', change: '+13.2%' },
+  { label: 'Revenue', value: '\u20A612.4M', change: '+12.6%' },
+  { label: 'Daily Sales', value: '\u20A6864K', change: '+7.1%' },
+]
+
+export const quickStats = [
+  { label: 'Top Product', value: 'Smart Kitchen Blender' },
+  { label: 'Top Location', value: 'Lagos Mainland' },
+  { label: 'Seller Payouts', value: '\u20A63.8M queued' },
+  { label: 'Delivery Zones', value: '18 active zones' },
+]
+
+export const chartData = [
+  { label: 'Mon', sales: 45, orders: 32, revenue: 52 },
+  { label: 'Tue', sales: 58, orders: 44, revenue: 61 },
+  { label: 'Wed', sales: 64, orders: 49, revenue: 66 },
+  { label: 'Thu', sales: 51, orders: 38, revenue: 57 },
+  { label: 'Fri', sales: 72, orders: 54, revenue: 74 },
+  { label: 'Sat', sales: 81, orders: 61, revenue: 86 },
+  { label: 'Sun', sales: 67, orders: 47, revenue: 71 },
+]
+
+export const recentTransactions = [
+  { id: 'TX-1032', customer: 'Amina Yusuf', amount: '\u20A656,000', status: 'Completed', time: '2 mins ago' },
+  { id: 'TX-1031', customer: 'David Cole', amount: '\u20A612,500', status: 'Pending', time: '8 mins ago' },
+  { id: 'TX-1030', customer: 'Mary Okafor', amount: '\u20A688,000', status: 'Paid', time: '21 mins ago' },
+  { id: 'TX-1029', customer: 'Efe Peter', amount: '\u20A631,200', status: 'Dispute', time: '35 mins ago' },
+]
+
+export const teamMembers = [
+  { name: 'Nora James', role: 'Support Lead', initials: 'NJ' },
+  { name: 'Ibrahim Bello', role: 'Compliance Admin', initials: 'IB' },
+  { name: 'Grace Adebayo', role: 'Finance Manager', initials: 'GA' },
+]
+
+export const orderStatuses = ['Pending', 'Paid', 'Processing', 'Shipped', 'Out for delivery', 'Delivered', 'Cancelled']
+export const paymentMethods = ['Card', 'Wallet', 'Cash on delivery']
+
+export const adminNavItems = [
+  { label: 'Overview', icon: LayoutDashboard, to: '/admin/overview' },
+  { label: 'Users', icon: Users, to: '/admin/users' },
+  { label: 'Sellers', icon: Store, to: '/admin/sellers' },
+  { label: 'Products', icon: ShoppingCart, to: '/admin/products' },
+  { label: 'Orders', icon: Package, to: '/admin/orders' },
+  { label: 'Riders', icon: Truck, to: '/admin/riders' },
+  { label: 'Finance', icon: CreditCard, to: '/admin/finance' },
+  { label: 'Analytics', icon: ChartColumnBig, to: '/admin/analytics' },
+  { label: 'Reviews', icon: Star, to: '/admin/reviews' },
+  { label: 'Promotions', icon: TicketPercent, to: '/admin/promotions' },
+  { label: 'Notifications', icon: Bell, to: '/admin/notifications' },
+  { label: 'Locations', icon: MapPinned, to: '/admin/locations' },
+  { label: 'Security', icon: ShieldCheck, to: '/admin/security' },
+  { label: 'Reports', icon: FileText, to: '/admin/reports' },
+  { label: 'Settings', icon: Settings, to: '/admin/settings' },
+]
+
+export const adminSections = {
+  users: {
+    title: 'User Management',
+    description: 'Admin controls all platform users.',
+    summary: 'Manage buyers, sellers, and riders from one place.',
+    highlights: ['24,580 total users', '182 KYC reviews', '57 recent suspensions'],
+    features: [
+      'View all buyers, sellers, riders',
+      'Approve or reject seller registrations',
+      'Verify seller identity (KYC)',
+      'Suspend or ban users',
+      'Reset passwords',
+      'Role management',
+      'View user activity logs',
+      'Search and filter users',
+      'Export user data',
+    ],
+  },
+  sellers: {
+    title: 'Seller Management',
+    description: 'Control everything sellers do.',
+    summary: 'Monitor stores, performance, verification, and commission settings.',
+    highlights: ['1,284 active sellers', '42 pending approvals', 'Top seller rating 4.9'],
+    features: [
+      'Approve or reject sellers',
+      'View seller stores',
+      'Monitor seller performance',
+      'Suspend or warn sellers',
+      'Seller verification badge',
+      'View seller earnings',
+      'Commission settings',
+      'Top sellers analytics',
+      'Seller ratings and sales performance',
+    ],
+  },
+  products: {
+    title: 'Product Management',
+    description: 'Control what gets sold on the platform.',
+    summary: 'Keep listings clean, safe, and well-organized.',
+    highlights: ['8,402 listed products', '123 flagged items', '18 categories'],
+    features: [
+      'View all products',
+      'Approve products before listing',
+      'Edit or delete products',
+      'Manage product categories',
+      'Manage product brands',
+      'Bulk product import',
+      'Flag fake or prohibited items',
+      'Product reviews moderation',
+      'Inventory monitoring',
+    ],
+  },
+  orders: {
+    title: 'Order Management',
+    description: 'Monitor all orders across the platform.',
+    summary: 'Track order flow from payment to delivery.',
+    highlights: ['8,942 total orders', '164 processing', '23 refunds pending'],
+    features: [
+      'View all orders',
+      'Order status tracking',
+      'Cancel orders',
+      'Refund management',
+      'Assign riders manually',
+      'View order history',
+      'Pending, paid, processing, shipped, out for delivery, delivered, cancelled',
+    ],
+  },
+  riders: {
+    title: 'Rider / Delivery Management',
+    description: 'Control delivery operations.',
+    summary: 'Manage rider onboarding, assignments, and delivery performance.',
+    highlights: ['326 riders', '18 delivery zones', '94% on-time rate'],
+    features: [
+      'Add or remove riders',
+      'Verify riders',
+      'Assign riders to orders',
+      'Track rider location',
+      'View delivery performance',
+      'Rider earnings dashboard',
+      'Delivery zones',
+      'Rider ratings',
+    ],
+  },
+  finance: {
+    title: 'Payment & Finance Management',
+    description: 'Track platform money.',
+    summary: 'Monitor commissions, payouts, disputes, and revenue.',
+    highlights: ['\u20A612.4M revenue', '\u20A63.8M payouts queued', '11 open disputes'],
+    features: [
+      'View all transactions',
+      'Commission tracking',
+      'Seller payouts',
+      'Refund management',
+      'Payment dispute management',
+      'Revenue analytics',
+      'Card, wallet, and cash on delivery methods',
+    ],
+  },
+  analytics: {
+    title: 'Analytics Dashboard',
+    description: 'Admin homepage statistics and performance trends.',
+    summary: 'Stay on top of users, orders, locations, and growth.',
+    highlights: ['Sales growth +12.6%', 'Top location Lagos Mainland', 'Top product Smart Kitchen Blender'],
+    features: [
+      'Total users, sellers, riders, and orders',
+      'Revenue and daily sales',
+      'Top selling products',
+      'Top locations',
+      'Sales graph',
+      'Orders graph',
+      'Revenue growth chart',
+    ],
+  },
+  reviews: {
+    title: 'Review & Rating Moderation',
+    description: 'Prevent abuse.',
+    summary: 'Keep ratings and reviews trustworthy.',
+    highlights: ['64 flagged reviews', '12 seller rating appeals', '3 suspicious spikes'],
+    features: [
+      'View product reviews',
+      'Delete abusive reviews',
+      'Moderate seller ratings',
+      'Flag suspicious reviews',
+    ],
+  },
+  promotions: {
+    title: 'Promotion & Marketing',
+    description: 'Admin controls promotions.',
+    summary: 'Run campaigns, coupons, and featured placements.',
+    highlights: ['7 active promos', '3 flash sales', '12 featured products'],
+    features: [
+      'Create discount codes',
+      'Manage coupons',
+      'Flash sales',
+      'Featured products',
+      'Sponsored listings',
+      'Banner ads',
+    ],
+  },
+  notifications: {
+    title: 'Notification System',
+    description: 'Send announcements.',
+    summary: 'Broadcast updates to buyers, sellers, and riders.',
+    highlights: ['4 queued campaigns', 'Push + email support', '98% delivery rate'],
+    features: [
+      'Send notifications to buyers',
+      'Send notifications to sellers',
+      'Send notifications to riders',
+      'Push notifications',
+      'Email notifications',
+      'Promo alerts, system updates, and delivery updates',
+    ],
+  },
+  locations: {
+    title: 'Location / Delivery Settings',
+    description: 'Control delivery areas.',
+    summary: 'Configure zones, pricing, and distance rules.',
+    highlights: ['12 active cities', '18 zones', 'Distance pricing enabled'],
+    features: [
+      'Manage cities',
+      'Delivery zones',
+      'Delivery price settings',
+      'Distance-based pricing',
+    ],
+  },
+  security: {
+    title: 'Security & System Control',
+    description: 'Protect the platform.',
+    summary: 'Audit platform access and reduce fraud risk.',
+    highlights: ['2FA ready', '1,204 login logs', '9 fraud alerts'],
+    features: [
+      'Admin role permissions',
+      'Activity logs',
+      'Login logs',
+      'Two-factor authentication',
+      'Fraud detection',
+    ],
+  },
+  reports: {
+    title: 'Reports',
+    description: 'Export useful data.',
+    summary: 'Download operational and financial reports quickly.',
+    highlights: ['CSV, PDF, Excel', 'Daily scheduled exports', '5 report groups'],
+    features: [
+      'Sales reports',
+      'Seller performance',
+      'Delivery reports',
+      'Customer reports',
+      'Product performance',
+      'PDF, CSV, and Excel formats',
+    ],
+  },
+  settings: {
+    title: 'Platform Settings',
+    description: 'Admin controls system behavior.',
+    summary: 'Manage fees, branding, taxes, and platform-wide defaults.',
+    highlights: ['Commission editable', 'Brand assets configurable', 'Currency + tax controls'],
+    features: [
+      'Commission percentage',
+      'Delivery fees',
+      'Tax settings',
+      'Currency',
+      'Platform name and logo',
+    ],
+  },
+} as const
+
+export type AdminSectionKey = keyof typeof adminSections
