@@ -1,6 +1,6 @@
 import { type ReactNode, useState } from 'react'
 import { Bell, Menu, Search, X } from 'lucide-react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 
 import { AppLogo } from '@/components/app-logo'
 import { ThemeToggle } from '@/components/theme-toggle'
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { adminNavItems } from '@/data/admin'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/lib/auth'
 
 type AdminShellProps = {
   title: string
@@ -49,6 +50,13 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AdminShell({ title, subtitle, children }: AdminShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { user, logOut } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = async () => {
+    await logOut()
+    navigate('/login', { replace: true })
+  }
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -102,13 +110,16 @@ export function AdminShell({ title, subtitle, children }: AdminShellProps) {
                 </Button>
                 <div className="flex items-center gap-3 rounded-xl border border-border/60 px-3 py-2">
                   <Avatar className="size-9">
-                    <AvatarFallback>BM</AvatarFallback>
+                    <AvatarFallback>{user?.email?.slice(0, 2)?.toUpperCase() || 'BM'}</AvatarFallback>
                   </Avatar>
                   <div className="text-sm">
-                    <p className="font-medium">Blorbmart Ops</p>
-                    <p className="text-muted-foreground">Super Admin</p>
+                    <p className="font-medium">{user?.email || 'Admin User'}</p>
+                    <p className="text-muted-foreground">Admin</p>
                   </div>
                 </div>
+                <Button variant="outline" onClick={handleLogout}>
+                  Sign out
+                </Button>
               </div>
             </div>
           </header>

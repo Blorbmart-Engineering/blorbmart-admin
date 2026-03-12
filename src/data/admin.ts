@@ -69,7 +69,7 @@ export const adminNavItems = [
   { label: 'Analytics', icon: ChartColumnBig, to: '/admin/analytics' },
   { label: 'Reviews', icon: Star, to: '/admin/reviews' },
   { label: 'Promotions', icon: TicketPercent, to: '/admin/promotions' },
-  { label: 'Notifications', icon: Bell, to: '/admin/notifications' },
+  { label: 'Activity', icon: Bell, to: '/admin/notifications' },
   { label: 'Locations', icon: MapPinned, to: '/admin/locations' },
   { label: 'Security', icon: ShieldCheck, to: '/admin/security' },
   { label: 'Reports', icon: FileText, to: '/admin/reports' },
