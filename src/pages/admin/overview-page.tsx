@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react'
 import { BarChart3, CircleDollarSign, Package } from 'lucide-react'
 
 import { AdminShell } from '@/components/admin/admin-shell'
@@ -6,7 +7,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { chartData, orderStatuses, overviewStats, paymentMethods, quickStats, recentTransactions, teamMembers } from '@/data/admin'
+import { chartData, orderStatuses, paymentMethods, recentTransactions, teamMembers } from '@/data/admin'
+import { useAuth } from '@/lib/auth'
 import { cn } from '@/lib/utils'
 
 function MiniChart({ color, values }: { color: string; values: number[] }) {
@@ -22,6 +24,56 @@ function MiniChart({ color, values }: { color: string; values: number[] }) {
 }
 
 export function OverviewPage() {
+  const { apiFetchAuth } = useAuth()
+  const [metrics, setMetrics] = useState<{ counts: any; last24h: any; approximate: boolean } | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let active = true
+    const load = async () => {
+      setLoading(true)
+      try {
+        const response = await apiFetchAuth('/api/admin/metrics')
+        if (!response.ok) throw new Error('Failed to load metrics')
+        const payload = await response.json()
+        if (!active) return
+        setMetrics(payload?.data || null)
+      } catch {
+        if (!active) return
+        setMetrics(null)
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    load()
+    return () => {
+      active = false
+    }
+  }, [apiFetchAuth])
+
+  const overviewStats = useMemo(() => {
+    const counts = metrics?.counts || {}
+    const last24h = metrics?.last24h || {}
+    return [
+      { label: 'Total Users', value: counts.users?.toLocaleString?.() || 'â€”', change: `+${last24h.activity || 0} activity` },
+      { label: 'Total Sellers', value: counts.vendors?.toLocaleString?.() || 'â€”', change: 'Tracked in vendors list' },
+      { label: 'Total Orders', value: counts.orders?.toLocaleString?.() || 'â€”', change: `+${last24h.orders || 0} in 24h` },
+      { label: 'Products Listed', value: counts.products?.toLocaleString?.() || 'â€”', change: 'Catalog health' },
+      { label: 'Activity Logs', value: counts.activity?.toLocaleString?.() || 'â€”', change: 'Audit trail' },
+      { label: 'Sync Status', value: loading ? 'Syncing' : 'Live', change: metrics?.approximate ? 'Approximate counts' : 'Real-time' },
+    ]
+  }, [metrics, loading])
+
+  const quickStats = useMemo(() => {
+    const counts = metrics?.counts || {}
+    return [
+      { label: 'Users', value: counts.users?.toLocaleString?.() || 'â€”' },
+      { label: 'Vendors', value: counts.vendors?.toLocaleString?.() || 'â€”' },
+      { label: 'Orders', value: counts.orders?.toLocaleString?.() || 'â€”' },
+      { label: 'Products', value: counts.products?.toLocaleString?.() || 'â€”' },
+    ]
+  }, [metrics])
+
   return (
     <AdminShell title="Blorbmart marketplace dashboard" subtitle="A cleaner overview with route-based pages instead of one long scroll.">
       <StatGrid stats={overviewStats} />
@@ -61,7 +113,7 @@ export function OverviewPage() {
           <Card>
             <CardHeader>
               <CardTitle>Quick metrics</CardTitle>
-              <CardDescription>Top-level highlights across the marketplace.</CardDescription>
+              <CardDescription>Live rollups from the backend metrics endpoint.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
               {quickStats.map((item) => (

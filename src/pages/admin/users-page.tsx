@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { AdminShell } from '@/components/admin/admin-shell'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { useAuth } from '@/lib/auth'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useAuth } from '@/lib/auth'
 
 type UserRecord = {
   id: string
@@ -38,9 +40,17 @@ export function UsersPage() {
   const [users, setUsers] = useState<UserRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [nextCursor, setNextCursor] = useState<{ cursorId: string; cursorCreatedAt: number | null } | null>(null)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+  const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null)
+
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('all')
+  const [role, setRole] = useState('all')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [page, setPage] = useState(1)
+  const pageSize = 25
+  const [hasMore, setHasMore] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -49,14 +59,24 @@ export function UsersPage() {
       setLoading(true)
       setError('')
       try {
-        const response = await apiFetchAuth('/api/admin/users?limit=25')
+        const params = new URLSearchParams({
+          limit: String(pageSize),
+          page: String(page),
+          q: query || ''
+        })
+        if (status !== 'all') params.set('status', status)
+        if (role !== 'all') params.set('role', role)
+        if (dateFrom) params.set('dateFrom', dateFrom)
+        if (dateTo) params.set('dateTo', dateTo)
+
+        const response = await apiFetchAuth(`/api/admin/users?${params.toString()}`)
         if (!response.ok) {
           throw new Error('Failed to load users')
         }
         const payload = await response.json()
         if (!active) return
         setUsers(payload?.data?.users || [])
-        setNextCursor(payload?.data?.nextCursor || null)
+        setHasMore(Boolean(payload?.data?.pagination?.hasMore))
       } catch (err: any) {
         if (!active) return
         setError(err?.message || 'Failed to load users')
@@ -69,7 +89,7 @@ export function UsersPage() {
     return () => {
       active = false
     }
-  }, [apiFetchAuth])
+  }, [apiFetchAuth, page, query, status, role, dateFrom, dateTo])
 
   const applyAction = async (userId: string, action: string, options: { reason?: string; durationDays?: number } = {}) => {
     setActionLoading(`${userId}:${action}`)
@@ -81,8 +101,17 @@ export function UsersPage() {
       if (!response.ok) {
         throw new Error('Failed to apply action')
       }
+      const statusMap: Record<string, string> = {
+        warn: 'active',
+        suspend: 'suspended',
+        ban: 'banned',
+        disable: 'disabled',
+        delete: 'deleted',
+        enable: 'active'
+      }
+      const nextStatus = statusMap[action] || action
       setUsers((prev) =>
-        prev.map((user) => (user.id === userId ? { ...user, accountStatus: action } : user))
+        prev.map((user) => (user.id === userId ? { ...user, accountStatus: nextStatus } : user))
       )
     } catch (err: any) {
       setError(err?.message || 'Failed to apply action')
@@ -119,35 +148,93 @@ export function UsersPage() {
     applyAction(userId, 'delete', { reason })
   }
 
-  const handleLoadMore = async () => {
-    if (!nextCursor) return
-    setLoadingMore(true)
+  const handleExport = async () => {
     try {
       const params = new URLSearchParams({
-        limit: '25',
-        cursorId: nextCursor.cursorId,
-        cursorCreatedAt: String(nextCursor.cursorCreatedAt || '')
+        limit: '1000',
+        q: query || ''
       })
-      const response = await apiFetchAuth(`/api/admin/users?${params.toString()}`)
-      if (!response.ok) {
-        throw new Error('Failed to load more users')
-      }
-      const payload = await response.json()
-      setUsers((prev) => [...prev, ...(payload?.data?.users || [])])
-      setNextCursor(payload?.data?.nextCursor || null)
+      if (status !== 'all') params.set('status', status)
+      if (role !== 'all') params.set('role', role)
+      if (dateFrom) params.set('dateFrom', dateFrom)
+      if (dateTo) params.set('dateTo', dateTo)
+
+      const response = await apiFetchAuth(`/api/admin/users/export?${params.toString()}`)
+      if (!response.ok) throw new Error('Failed to export users')
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `users-export-${Date.now()}.csv`
+      link.click()
+      URL.revokeObjectURL(url)
     } catch (err: any) {
-      setError(err?.message || 'Failed to load more users')
-    } finally {
-      setLoadingMore(false)
+      setError(err?.message || 'Failed to export users')
     }
   }
 
+  const toolbarStatus = useMemo(() => (status === 'all' ? 'All' : status), [status])
+
   return (
     <AdminShell title="Users" subtitle="All registered buyers and vendors.">
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Search & Filters</CardTitle>
+          <CardDescription>Find users by email, phone, role, or status.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
+          <div className="space-y-2">
+            <Label htmlFor="user-search">Search</Label>
+            <Input id="user-search" placeholder="Email, phone, name, or ID" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} />
+          </div>
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <select
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={status}
+              onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
+              <option value="banned">Banned</option>
+              <option value="disabled">Disabled</option>
+              <option value="deleted">Deleted</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label>Role</Label>
+            <select
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={role}
+              onChange={(e) => { setRole(e.target.value); setPage(1); }}
+            >
+              <option value="all">All roles</option>
+              <option value="buyer">Buyer</option>
+              <option value="vendor">Vendor</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label>Date range</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
+              <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
+            </div>
+          </div>
+          <div className="flex items-end gap-2">
+            <Button variant="outline" onClick={() => { setQuery(''); setStatus('all'); setRole('all'); setDateFrom(''); setDateTo(''); setPage(1); }}>
+              Reset
+            </Button>
+            <Button onClick={handleExport}>Export CSV</Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>User Directory</CardTitle>
-          <CardDescription>Showing the most recent users from Firestore.</CardDescription>
+          <CardDescription>Showing {toolbarStatus.toLowerCase()} users with active filters.</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? <p className="text-sm text-muted-foreground">Loading users...</p> : null}
@@ -185,6 +272,13 @@ export function UsersPage() {
                         <td className="py-3 pr-4">{formatDate(user.createdAt)}</td>
                         <td className="py-3 pr-4">
                           <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => setSelectedUser(user)}
+                            >
+                              View
+                            </Button>
                             <Button
                               size="sm"
                               variant="outline"
@@ -234,20 +328,51 @@ export function UsersPage() {
               </table>
             </div>
           ) : null}
-          {!loading && !error && nextCursor ? (
-            <div className="mt-4">
-              <button
-                type="button"
-                className="text-sm font-medium text-primary hover:underline"
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-              >
-                {loadingMore ? 'Loading...' : 'Load more'}
-              </button>
+          {!loading && !error ? (
+            <div className="mt-4 flex items-center justify-between text-sm">
+              <Button variant="ghost" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+                Previous
+              </Button>
+              <span className="text-muted-foreground">Page {page}</span>
+              <Button variant="ghost" onClick={() => setPage((p) => p + 1)} disabled={!hasMore}>
+                Next
+              </Button>
             </div>
           ) : null}
         </CardContent>
       </Card>
+
+      {selectedUser ? (
+        <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setSelectedUser(null)}>
+          <div
+            className="absolute right-0 top-0 h-full w-full max-w-xl overflow-y-auto bg-background p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">User Detail</h2>
+                <p className="text-sm text-muted-foreground">ID: {selectedUser.id}</p>
+              </div>
+              <Button variant="ghost" onClick={() => setSelectedUser(null)}>Close</Button>
+            </div>
+            <div className="mt-6 grid gap-4">
+              {[
+                ['Name', [selectedUser.firstName, selectedUser.lastName].filter(Boolean).join(' ') || '—'],
+                ['Email', selectedUser.email || '—'],
+                ['Phone', selectedUser.phone || '—'],
+                ['Role', selectedUser.role || '—'],
+                ['Status', selectedUser.accountStatus || '—'],
+                ['Created', formatDate(selectedUser.createdAt)]
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-border/60 p-4">
+                  <p className="text-xs uppercase text-muted-foreground">{label}</p>
+                  <p className="mt-2 font-medium">{value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </AdminShell>
   )
 }

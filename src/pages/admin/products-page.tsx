@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { AdminShell } from '@/components/admin/admin-shell'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useAuth } from '@/lib/auth'
 
 type ProductRecord = {
@@ -43,8 +46,17 @@ export function ProductsPage() {
   const [products, setProducts] = useState<ProductRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [nextCursor, setNextCursor] = useState<{ cursorId: string; cursorCreatedAt: number | null } | null>(null)
-  const [loadingMore, setLoadingMore] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<ProductRecord | null>(null)
+
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState('all')
+  const [category, setCategory] = useState('all')
+  const [vendorId, setVendorId] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [page, setPage] = useState(1)
+  const pageSize = 25
+  const [hasMore, setHasMore] = useState(false)
 
   useEffect(() => {
     let active = true
@@ -53,14 +65,25 @@ export function ProductsPage() {
       setLoading(true)
       setError('')
       try {
-        const response = await apiFetchAuth('/api/admin/products?limit=25')
+        const params = new URLSearchParams({
+          limit: String(pageSize),
+          page: String(page),
+          q: query || ''
+        })
+        if (status !== 'all') params.set('status', status)
+        if (category !== 'all') params.set('category', category)
+        if (vendorId) params.set('vendorId', vendorId)
+        if (dateFrom) params.set('dateFrom', dateFrom)
+        if (dateTo) params.set('dateTo', dateTo)
+
+        const response = await apiFetchAuth(`/api/admin/products?${params.toString()}`)
         if (!response.ok) {
           throw new Error('Failed to load products')
         }
         const payload = await response.json()
         if (!active) return
         setProducts(payload?.data?.products || [])
-        setNextCursor(payload?.data?.nextCursor || null)
+        setHasMore(Boolean(payload?.data?.pagination?.hasMore))
       } catch (err: any) {
         if (!active) return
         setError(err?.message || 'Failed to load products')
@@ -73,37 +96,100 @@ export function ProductsPage() {
     return () => {
       active = false
     }
-  }, [apiFetchAuth])
+  }, [apiFetchAuth, page, query, status, category, vendorId, dateFrom, dateTo])
 
-  const handleLoadMore = async () => {
-    if (!nextCursor) return
-    setLoadingMore(true)
+  const handleExport = async () => {
     try {
       const params = new URLSearchParams({
-        limit: '25',
-        cursorId: nextCursor.cursorId,
-        cursorCreatedAt: String(nextCursor.cursorCreatedAt || '')
+        limit: '1000',
+        q: query || ''
       })
-      const response = await apiFetchAuth(`/api/admin/products?${params.toString()}`)
-      if (!response.ok) {
-        throw new Error('Failed to load more products')
-      }
-      const payload = await response.json()
-      setProducts((prev) => [...prev, ...(payload?.data?.products || [])])
-      setNextCursor(payload?.data?.nextCursor || null)
+      if (status !== 'all') params.set('status', status)
+      if (category !== 'all') params.set('category', category)
+      if (vendorId) params.set('vendorId', vendorId)
+      if (dateFrom) params.set('dateFrom', dateFrom)
+      if (dateTo) params.set('dateTo', dateTo)
+
+      const response = await apiFetchAuth(`/api/admin/products/export?${params.toString()}`)
+      if (!response.ok) throw new Error('Failed to export products')
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `products-export-${Date.now()}.csv`
+      link.click()
+      URL.revokeObjectURL(url)
     } catch (err: any) {
-      setError(err?.message || 'Failed to load more products')
-    } finally {
-      setLoadingMore(false)
+      setError(err?.message || 'Failed to export products')
     }
   }
 
+  const toolbarStatus = useMemo(() => (status === 'all' ? 'All' : status), [status])
+
   return (
     <AdminShell title="Products" subtitle="All listed products across the marketplace.">
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Search & Filters</CardTitle>
+          <CardDescription>Filter products by category, status, or vendor.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_1fr_auto]">
+          <div className="space-y-2">
+            <Label htmlFor="product-search">Search</Label>
+            <Input id="product-search" placeholder="Name, category, vendor ID" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} />
+          </div>
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <select
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={status}
+              onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="draft">Draft</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label>Category</Label>
+            <select
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={category}
+              onChange={(e) => { setCategory(e.target.value); setPage(1); }}
+            >
+              <option value="all">All categories</option>
+              <option value="food">Food</option>
+              <option value="groceries">Groceries</option>
+              <option value="beverages">Beverages</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="vendor-filter">Vendor ID</Label>
+            <Input id="vendor-filter" placeholder="Vendor ID" value={vendorId} onChange={(e) => { setVendorId(e.target.value); setPage(1); }} />
+          </div>
+          <div className="flex items-end gap-2">
+            <Button variant="outline" onClick={() => { setQuery(''); setStatus('all'); setCategory('all'); setVendorId(''); setDateFrom(''); setDateTo(''); setPage(1); }}>
+              Reset
+            </Button>
+            <Button onClick={handleExport}>Export CSV</Button>
+          </div>
+        </CardContent>
+        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1fr_1fr]">
+          <div className="space-y-2">
+            <Label>Date range</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
+              <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Product Catalog</CardTitle>
-          <CardDescription>Showing the most recent products from Firestore.</CardDescription>
+          <CardDescription>Showing {toolbarStatus.toLowerCase()} products with active filters.</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? <p className="text-sm text-muted-foreground">Loading products...</p> : null}
@@ -120,6 +206,7 @@ export function ProductsPage() {
                     <th className="py-3 pr-4 font-medium">Price</th>
                     <th className="py-3 pr-4 font-medium">Status</th>
                     <th className="py-3 pr-4 font-medium">Created</th>
+                    <th className="py-3 pr-4 font-medium">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -135,6 +222,11 @@ export function ProductsPage() {
                         </Badge>
                       </td>
                       <td className="py-3 pr-4">{formatDate(product.createdAt)}</td>
+                      <td className="py-3 pr-4">
+                        <Button size="sm" variant="secondary" onClick={() => setSelectedProduct(product)}>
+                          View
+                        </Button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -142,20 +234,51 @@ export function ProductsPage() {
             </div>
           ) : null}
 
-          {!loading && !error && nextCursor ? (
-            <div className="mt-4">
-              <button
-                type="button"
-                className="text-sm font-medium text-primary hover:underline"
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-              >
-                {loadingMore ? 'Loading...' : 'Load more'}
-              </button>
+          {!loading && !error ? (
+            <div className="mt-4 flex items-center justify-between text-sm">
+              <Button variant="ghost" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1}>
+                Previous
+              </Button>
+              <span className="text-muted-foreground">Page {page}</span>
+              <Button variant="ghost" onClick={() => setPage((p) => p + 1)} disabled={!hasMore}>
+                Next
+              </Button>
             </div>
           ) : null}
         </CardContent>
       </Card>
+
+      {selectedProduct ? (
+        <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setSelectedProduct(null)}>
+          <div
+            className="absolute right-0 top-0 h-full w-full max-w-xl overflow-y-auto bg-background p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold">Product Detail</h2>
+                <p className="text-sm text-muted-foreground">ID: {selectedProduct.id}</p>
+              </div>
+              <Button variant="ghost" onClick={() => setSelectedProduct(null)}>Close</Button>
+            </div>
+            <div className="mt-6 grid gap-4">
+              {[
+                ['Name', selectedProduct.name || selectedProduct.title || '—'],
+                ['Category', selectedProduct.category || '—'],
+                ['Vendor', selectedProduct.vendorId || '—'],
+                ['Price', formatPrice(selectedProduct.price, selectedProduct.currency)],
+                ['Status', selectedProduct.status || '—'],
+                ['Created', formatDate(selectedProduct.createdAt)]
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-xl border border-border/60 p-4">
+                  <p className="text-xs uppercase text-muted-foreground">{label}</p>
+                  <p className="mt-2 font-medium">{value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </AdminShell>
   )
 }
