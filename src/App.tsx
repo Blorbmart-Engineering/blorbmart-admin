@@ -7,6 +7,7 @@ import { VendorsPage } from '@/pages/admin/vendors-page'
 import { ActivityPage } from '@/pages/admin/activity-page'
 import { ProductsPage } from '@/pages/admin/products-page'
 import { OrdersPage } from '@/pages/admin/orders-page'
+import { SettingsPage } from '@/pages/admin/settings-page'
 import { LoginPage } from '@/pages/login-page'
 import { SignupPage } from '@/pages/signup-page'
 import { RequireAdmin } from '@/lib/auth'
@@ -136,7 +137,7 @@ function App() {
           path="/admin/settings"
           element={
             <RequireAdmin>
-              <SectionPage sectionKey="settings" />
+              <SettingsPage />
             </RequireAdmin>
           }
         />
