@@ -40,6 +40,7 @@ export function VendorsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [selectedVendor, setSelectedVendor] = useState<VendorRecord | null>(null)
+  const [updatingStatus, setUpdatingStatus] = useState(false)
 
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
@@ -112,6 +113,26 @@ export function VendorsPage() {
   }
 
   const toolbarStatus = useMemo(() => (status === 'all' ? 'All' : status), [status])
+
+  const updateVendorStatus = async (vendor: VendorRecord, nextStatus: string) => {
+    if (!vendor?.id) return
+    setUpdatingStatus(true)
+    try {
+      const response = await apiFetchAuth(`/api/admin/vendors/${vendor.id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: nextStatus })
+      })
+      if (!response.ok) {
+        throw new Error('Failed to update vendor status')
+      }
+      setSelectedVendor(null)
+      setPage(1)
+    } catch (err: any) {
+      setError(err?.message || 'Failed to update vendor status')
+    } finally {
+      setUpdatingStatus(false)
+    }
+  }
 
   return (
     <AdminShell title="Vendors" subtitle="All registered sellers and storefronts.">
@@ -242,6 +263,32 @@ export function VendorsPage() {
                   <p className="mt-2 font-medium">{value}</p>
                 </div>
               ))}
+            </div>
+
+            <div className="mt-6 flex items-center gap-2">
+              {selectedVendor.status !== 'active' ? (
+                <Button
+                  onClick={() => updateVendorStatus(selectedVendor, 'active')}
+                  disabled={updatingStatus}
+                >
+                  Approve vendor
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => updateVendorStatus(selectedVendor, 'suspended')}
+                  disabled={updatingStatus}
+                >
+                  Suspend vendor
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                onClick={() => updateVendorStatus(selectedVendor, 'pending')}
+                disabled={updatingStatus}
+              >
+                Mark pending
+              </Button>
             </div>
           </div>
         </div>
