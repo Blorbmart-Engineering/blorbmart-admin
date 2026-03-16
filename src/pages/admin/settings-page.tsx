@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/auth'
 type SettingsPayload = {
   deliveryFee: number
   serviceFee: number
+  payoutHoldHours: number
   requireLandmark: boolean
   addressNotes: string
 }
@@ -32,6 +33,7 @@ type PromoCode = {
 const initialSettings: SettingsPayload = {
   deliveryFee: 1000,
   serviceFee: 100,
+  payoutHoldHours: 0,
   requireLandmark: true,
   addressNotes: 'Provide a clear landmark for easier delivery.'
 }
@@ -65,6 +67,7 @@ export function SettingsPage() {
       setSettings({
         deliveryFee: Number(data.data.deliveryFee ?? 1000),
         serviceFee: Number(data.data.serviceFee ?? 100),
+        payoutHoldHours: Number(data.data.payoutHoldHours ?? 0),
         requireLandmark: Boolean(data.data.requireLandmark ?? true),
         addressNotes: String(data.data.addressNotes ?? '')
       })
@@ -92,6 +95,7 @@ export function SettingsPage() {
       body: JSON.stringify({
         deliveryFee: Number(settings.deliveryFee || 0),
         serviceFee: Number(settings.serviceFee || 0),
+        payoutHoldHours: Number(settings.payoutHoldHours || 0),
         requireLandmark: Boolean(settings.requireLandmark),
         addressNotes: settings.addressNotes
       })
@@ -169,6 +173,19 @@ export function SettingsPage() {
                       onChange={(event) => setSettings((prev) => ({
                         ...prev,
                         serviceFee: Number(event.target.value || 0)
+                      }))}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Payout hold (hours)</Label>
+                    <Input
+                      type="number"
+                      value={settings.payoutHoldHours}
+                      onChange={(event) => setSettings((prev) => ({
+                        ...prev,
+                        payoutHoldHours: Number(event.target.value || 0)
                       }))}
                     />
                   </div>
