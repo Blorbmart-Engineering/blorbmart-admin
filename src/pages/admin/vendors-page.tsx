@@ -16,6 +16,7 @@ type VendorRecord = {
   email?: string
   phone?: string
   status?: string
+  sellerType?: 'normal' | 'food' | string
   createdAt?: any
 }
 
@@ -44,6 +45,7 @@ export function VendorsPage() {
 
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
+  const [sellerType, setSellerType] = useState('all')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
@@ -63,6 +65,7 @@ export function VendorsPage() {
           q: query || ''
         })
         if (status !== 'all') params.set('status', status)
+        if (sellerType !== 'all') params.set('sellerType', sellerType)
         if (dateFrom) params.set('dateFrom', dateFrom)
         if (dateTo) params.set('dateTo', dateTo)
 
@@ -86,7 +89,7 @@ export function VendorsPage() {
     return () => {
       active = false
     }
-  }, [apiFetchAuth, page, query, status, dateFrom, dateTo])
+  }, [apiFetchAuth, page, query, status, sellerType, dateFrom, dateTo])
 
   const handleExport = async () => {
     try {
@@ -95,6 +98,7 @@ export function VendorsPage() {
         q: query || ''
       })
       if (status !== 'all') params.set('status', status)
+      if (sellerType !== 'all') params.set('sellerType', sellerType)
       if (dateFrom) params.set('dateFrom', dateFrom)
       if (dateTo) params.set('dateTo', dateTo)
 
@@ -141,7 +145,7 @@ export function VendorsPage() {
           <CardTitle>Search & Filters</CardTitle>
           <CardDescription>Find vendors by business name, owner, or status.</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.6fr_1fr_1fr_auto]">
+        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.3fr_1fr_1fr_1fr_auto]">
           <div className="space-y-2">
             <Label htmlFor="vendor-search">Search</Label>
             <Input id="vendor-search" placeholder="Business, owner, email, phone" value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} />
@@ -160,6 +164,18 @@ export function VendorsPage() {
             </select>
           </div>
           <div className="space-y-2">
+            <Label>Seller type</Label>
+            <select
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={sellerType}
+              onChange={(e) => { setSellerType(e.target.value); setPage(1); }}
+            >
+              <option value="all">All seller types</option>
+              <option value="normal">Normal seller</option>
+              <option value="food">Food vendor</option>
+            </select>
+          </div>
+          <div className="space-y-2">
             <Label>Date range</Label>
             <div className="grid grid-cols-2 gap-2">
               <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
@@ -167,7 +183,7 @@ export function VendorsPage() {
             </div>
           </div>
           <div className="flex items-end gap-2">
-            <Button variant="outline" onClick={() => { setQuery(''); setStatus('all'); setDateFrom(''); setDateTo(''); setPage(1); }}>
+            <Button variant="outline" onClick={() => { setQuery(''); setStatus('all'); setSellerType('all'); setDateFrom(''); setDateTo(''); setPage(1); }}>
               Reset
             </Button>
             <Button onClick={handleExport}>Export CSV</Button>
@@ -193,6 +209,7 @@ export function VendorsPage() {
                     <th className="py-3 pr-4 font-medium">Owner</th>
                     <th className="py-3 pr-4 font-medium">Email</th>
                     <th className="py-3 pr-4 font-medium">Phone</th>
+                    <th className="py-3 pr-4 font-medium">Seller type</th>
                     <th className="py-3 pr-4 font-medium">Status</th>
                     <th className="py-3 pr-4 font-medium">Created</th>
                     <th className="py-3 pr-4 font-medium">Action</th>
@@ -205,6 +222,7 @@ export function VendorsPage() {
                       <td className="py-3 pr-4">{vendor.ownerName || '—'}</td>
                       <td className="py-3 pr-4">{vendor.email || '—'}</td>
                       <td className="py-3 pr-4">{vendor.phone || '—'}</td>
+                      <td className="py-3 pr-4">{vendor.sellerType || 'normal'}</td>
                       <td className="py-3 pr-4">
                         <Badge variant={vendor.status === 'active' ? 'secondary' : 'outline'}>
                           {vendor.status || 'unknown'}
@@ -255,6 +273,7 @@ export function VendorsPage() {
                 ['Owner', selectedVendor.ownerName || '—'],
                 ['Email', selectedVendor.email || '—'],
                 ['Phone', selectedVendor.phone || '—'],
+                ['Seller type', selectedVendor.sellerType || 'normal'],
                 ['Status', selectedVendor.status || '—'],
                 ['Created', formatDate(selectedVendor.createdAt)]
               ].map(([label, value]) => (

@@ -13,6 +13,8 @@ type SettingsPayload = {
   deliveryFee: number
   serviceFee: number
   payoutHoldHours: number
+  buyerReferralEnabled: boolean
+  buyerReferralRewardNaira: number
   requireLandmark: boolean
   addressNotes: string
 }
@@ -34,6 +36,8 @@ const initialSettings: SettingsPayload = {
   deliveryFee: 1000,
   serviceFee: 100,
   payoutHoldHours: 0,
+  buyerReferralEnabled: true,
+  buyerReferralRewardNaira: 200,
   requireLandmark: true,
   addressNotes: 'Provide a clear landmark for easier delivery.'
 }
@@ -68,6 +72,8 @@ export function SettingsPage() {
         deliveryFee: Number(data.data.deliveryFee ?? 1000),
         serviceFee: Number(data.data.serviceFee ?? 100),
         payoutHoldHours: Number(data.data.payoutHoldHours ?? 0),
+        buyerReferralEnabled: Boolean(data.data.buyerReferralEnabled ?? true),
+        buyerReferralRewardNaira: Number(data.data.buyerReferralRewardNaira ?? 200),
         requireLandmark: Boolean(data.data.requireLandmark ?? true),
         addressNotes: String(data.data.addressNotes ?? '')
       })
@@ -96,6 +102,8 @@ export function SettingsPage() {
         deliveryFee: Number(settings.deliveryFee || 0),
         serviceFee: Number(settings.serviceFee || 0),
         payoutHoldHours: Number(settings.payoutHoldHours || 0),
+        buyerReferralEnabled: Boolean(settings.buyerReferralEnabled),
+        buyerReferralRewardNaira: Number(settings.buyerReferralRewardNaira || 0),
         requireLandmark: Boolean(settings.requireLandmark),
         addressNotes: settings.addressNotes
       })
@@ -188,6 +196,33 @@ export function SettingsPage() {
                         payoutHoldHours: Number(event.target.value || 0)
                       }))}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Buyer referral reward (NGN)</Label>
+                    <Input
+                      type="number"
+                      value={settings.buyerReferralRewardNaira}
+                      onChange={(event) => setSettings((prev) => ({
+                        ...prev,
+                        buyerReferralRewardNaira: Number(event.target.value || 0)
+                      }))}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Buyer referrals enabled?</Label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={settings.buyerReferralEnabled}
+                      onChange={(event) => setSettings((prev) => ({
+                        ...prev,
+                        buyerReferralEnabled: event.target.checked
+                      }))}
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      Let buyers share referral codes and earn wallet rewards
+                    </span>
                   </div>
                 </div>
                 <div className="space-y-2">
