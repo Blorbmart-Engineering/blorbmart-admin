@@ -3,7 +3,7 @@ import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebas
 import type { User } from 'firebase/auth'
 
 import { auth } from '@/lib/firebase'
-import { apiFetch, apiFetchWithToken } from '@/lib/api'
+import { apiFetchWithToken } from '@/lib/api'
 
 type AuthContextValue = {
   user: User | null
