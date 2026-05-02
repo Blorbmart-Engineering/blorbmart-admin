@@ -32,8 +32,16 @@ type PromoCode = {
   description?: string
 }
 
+type CategoryCommission = {
+  id: string
+  categoryId: string
+  categoryName: string
+  commissionPercent: number
+  active: boolean
+}
+
 const initialSettings: SettingsPayload = {
-  deliveryFee: 1000,
+  deliveryFee: 500,
   serviceFee: 100,
   payoutHoldHours: 0,
   buyerReferralEnabled: true,
@@ -63,6 +71,9 @@ export function SettingsPage() {
   const [promoForm, setPromoForm] = useState(initialPromo)
   const [promoSaving, setPromoSaving] = useState(false)
 
+  const [commissions, setCommissions] = useState<CategoryCommission[]>([])
+  const [commissionSaving, setCommissionSaving] = useState(false)
+
   const loadSettings = useCallback(async () => {
     setLoading(true)
     const response = await apiFetchAuth('/api/admin/settings')
@@ -89,10 +100,19 @@ export function SettingsPage() {
     }
   }, [apiFetchAuth])
 
+  const loadCommissions = useCallback(async () => {
+    const response = await apiFetchAuth('/api/category-commission')
+    const data = await response.json().catch(() => ({}))
+    if (response.ok && Array.isArray(data?.data)) {
+      setCommissions(data.data as CategoryCommission[])
+    }
+  }, [apiFetchAuth])
+
   useEffect(() => {
     loadSettings()
     loadPromos()
-  }, [loadSettings, loadPromos])
+    loadCommissions()
+  }, [loadSettings, loadPromos, loadCommissions])
 
   const saveSettings = async () => {
     setSavingSettings(true)
@@ -145,10 +165,20 @@ export function SettingsPage() {
     await loadPromos()
   }
 
+  const updateCommission = async (categoryId: string, commissionPercent: number, active: boolean) => {
+    setCommissionSaving(true)
+    await apiFetchAuth(`/api/category-commission/${categoryId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ commissionPercent, active })
+    })
+    await loadCommissions()
+    setCommissionSaving(false)
+  }
+
   return (
     <AdminShell title="Platform Settings" subtitle="Manage fees, delivery rules, and promo codes.">
-      <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <Card>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Fees & Delivery</CardTitle>
             <CardDescription>Global delivery and service fees for all orders.</CardDescription>
@@ -260,7 +290,79 @@ export function SettingsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Category Commissions</CardTitle>
+            <CardDescription>Set platform commission rates per product category.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {commissions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Loading commissions...</p>
+            ) : (
+              <div className="space-y-3">
+                {commissions.map((commission) => (
+                  <div key={commission.id} className="rounded-2xl border border-border/60 p-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <p className="font-semibold">{commission.categoryName}</p>
+                        <p className="text-xs text-muted-foreground">ID: {commission.categoryId}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs">Commission %</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max="100"
+                            className="w-20 h-8"
+                            value={commission.commissionPercent}
+                            onChange={(e) => {
+                              const newCommissions = commissions.map(c =>
+                                c.id === commission.id
+                                  ? { ...c, commissionPercent: Number(e.target.value || 0) }
+                                  : c
+                              )
+                              setCommissions(newCommissions)
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={commission.active}
+                            onChange={(e) => {
+                              const newCommissions = commissions.map(c =>
+                                c.id === commission.id
+                                  ? { ...c, active: e.target.checked }
+                                  : c
+                              )
+                              setCommissions(newCommissions)
+                            }}
+                          />
+                          <span className="text-xs text-muted-foreground">Active</span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => updateCommission(
+                            commission.categoryId,
+                            commission.commissionPercent,
+                            commission.active
+                          )}
+                          disabled={commissionSaving}
+                        >
+                          {commissionSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Promo Codes</CardTitle>
             <CardDescription>Create and manage global promo codes.</CardDescription>

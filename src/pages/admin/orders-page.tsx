@@ -13,11 +13,18 @@ type OrderRecord = {
   orderId?: string
   userId?: string
   buyerId?: string
+  buyerName?: string
+  buyerEmail?: string
+  buyerPhone?: string
   total?: number
   currency?: string
   status?: string
   paymentStatus?: string
+  paymentMethod?: string
+  paymentReference?: string
   createdAt?: any
+  items?: any[]
+  shippingAddress?: any
 }
 
 function formatDate(value: any) {
@@ -97,6 +104,44 @@ export function OrdersPage() {
       active = false
     }
   }, [apiFetchAuth, page, query, status, paymentStatus, buyerId, dateFrom, dateTo])
+
+  const [buyerCache, setBuyerCache] = useState<Record<string, { name?: string; email?: string; phone?: string }>>({})
+
+  const fetchBuyerDetails = async (userId: string) => {
+    if (!userId || buyerCache[userId]) return
+    try {
+      const response = await apiFetchAuth(`/api/admin/users?q=${encodeURIComponent(userId)}&limit=1`)
+      if (!response.ok) return
+      const payload = await response.json()
+      const user = payload?.data?.users?.[0]
+      if (user) {
+        setBuyerCache((prev) => ({
+          ...prev,
+          [userId]: {
+            name: [user.firstName, user.lastName].filter(Boolean).join(' ') || user.displayName || 'Unknown',
+            email: user.email || '',
+            phone: user.phone || ''
+          }
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to fetch buyer:', err)
+    }
+  }
+
+  useEffect(() => {
+    if (selectedOrder?.userId) {
+      fetchBuyerDetails(selectedOrder.userId)
+    }
+  }, [selectedOrder])
+
+  // Fetch buyer details for all orders in the list
+  useEffect(() => {
+    const userIds = orders.map(o => o.userId).filter((id): id is string => !!id && !buyerCache[id])
+    const uniqueIds = [...new Set(userIds)].slice(0, 10) // Limit to 10 at a time
+    uniqueIds.forEach(id => fetchBuyerDetails(id))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders])
 
   const handleExport = async () => {
     try {
@@ -214,9 +259,20 @@ export function OrdersPage() {
                   {orders.map((order) => (
                     <tr key={order.id} className="border-b border-border/40">
                       <td className="py-3 pr-4">{order.orderId || order.id}</td>
-                      <td className="py-3 pr-4">{order.userId || order.buyerId || '—'}</td>
+                      <td className="py-3 pr-4">
+                        {order.userId && buyerCache[order.userId]?.name 
+                          ? buyerCache[order.userId].name 
+                          : order.buyerName || order.userId || order.buyerId || '—'}
+                      </td>
                       <td className="py-3 pr-4">{formatPrice(order.total, order.currency)}</td>
-                      <td className="py-3 pr-4">{order.paymentStatus || '—'}</td>
+                      <td className="py-3 pr-4">
+                        <Badge 
+                          variant={order.paymentStatus === 'paid' || order.paymentStatus === 'completed' ? 'default' : 'outline'}
+                          className={order.paymentStatus === 'failed' ? 'bg-red-100 text-red-700 border-red-200' : ''}
+                        >
+                          {order.paymentStatus || 'Pending'}
+                        </Badge>
+                      </td>
                       <td className="py-3 pr-4">
                         <Badge variant={order.status === 'completed' ? 'secondary' : 'outline'}>
                           {order.status || 'unknown'}
@@ -250,32 +306,126 @@ export function OrdersPage() {
       </Card>
 
       {selectedOrder ? (
-        <div className="fixed inset-0 z-50 bg-black/40" onClick={() => setSelectedOrder(null)}>
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" 
+          onClick={() => setSelectedOrder(null)}
+        >
           <div
-            className="absolute right-0 top-0 h-full w-full max-w-xl overflow-y-auto bg-background p-6 shadow-xl"
+            className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl bg-background p-6 shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">Order Detail</h2>
-                <p className="text-sm text-muted-foreground">ID: {selectedOrder.id}</p>
-              </div>
-              <Button variant="ghost" onClick={() => setSelectedOrder(null)}>Close</Button>
+            {/* Close button */}
+            <button 
+              onClick={() => setSelectedOrder(null)}
+              className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12"/>
+              </svg>
+            </button>
+
+            <div className="mb-6">
+              <h2 className="text-xl font-semibold">Order Details</h2>
+              <p className="text-sm text-muted-foreground mt-1">{selectedOrder.orderId || selectedOrder.id}</p>
             </div>
-            <div className="mt-6 grid gap-4">
-              {[
-                ['Order ID', selectedOrder.orderId || selectedOrder.id],
-                ['Buyer', selectedOrder.userId || selectedOrder.buyerId || '—'],
-                ['Total', formatPrice(selectedOrder.total, selectedOrder.currency)],
-                ['Payment', selectedOrder.paymentStatus || '—'],
-                ['Status', selectedOrder.status || '—'],
-                ['Created', formatDate(selectedOrder.createdAt)]
-              ].map(([label, value]) => (
-                <div key={label} className="rounded-xl border border-border/60 p-4">
-                  <p className="text-xs uppercase text-muted-foreground">{label}</p>
-                  <p className="mt-2 font-medium">{value}</p>
+
+            <div className="space-y-4">
+              {/* Buyer Info */}
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
+                <p className="text-xs font-medium uppercase text-muted-foreground mb-3">Buyer Information</p>
+                <div className="space-y-2">
+                  <p className="font-medium">
+                    {selectedOrder.userId && buyerCache[selectedOrder.userId]?.name 
+                      ? buyerCache[selectedOrder.userId].name 
+                      : selectedOrder.buyerName || 'Unknown Buyer'}
+                  </p>
+                  {selectedOrder.userId && buyerCache[selectedOrder.userId]?.email && (
+                    <p className="text-sm text-muted-foreground">{buyerCache[selectedOrder.userId].email}</p>
+                  )}
+                  {selectedOrder.userId && buyerCache[selectedOrder.userId]?.phone && (
+                    <p className="text-sm text-muted-foreground">{buyerCache[selectedOrder.userId].phone}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-2">ID: {selectedOrder.userId || selectedOrder.buyerId || '—'}</p>
                 </div>
-              ))}
+              </div>
+
+              {/* Order Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="rounded-xl border border-border/60 p-4">
+                  <p className="text-xs uppercase text-muted-foreground mb-1">Total Amount</p>
+                  <p className="text-lg font-semibold">{formatPrice(selectedOrder.total, selectedOrder.currency)}</p>
+                </div>
+                <div className="rounded-xl border border-border/60 p-4">
+                  <p className="text-xs uppercase text-muted-foreground mb-1">Status</p>
+                  <Badge variant={selectedOrder.status === 'completed' ? 'default' : 'secondary'}>
+                    {selectedOrder.status || 'Unknown'}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Payment Info */}
+              <div className="rounded-xl border border-border/60 p-4">
+                <p className="text-xs font-medium uppercase text-muted-foreground mb-3">Payment Details</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Status</p>
+                    <Badge 
+                      variant={
+                        selectedOrder.paymentStatus === 'paid' || selectedOrder.paymentStatus === 'completed' 
+                          ? 'default' 
+                          : 'outline'
+                      }
+                      className={
+                        selectedOrder.paymentStatus === 'failed' 
+                          ? 'bg-red-100 text-red-700 border-red-200' 
+                          : ''
+                      }
+                    >
+                      {selectedOrder.paymentStatus || 'Pending'}
+                    </Badge>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Method</p>
+                    <p className="font-medium capitalize">{selectedOrder.paymentMethod || '—'}</p>
+                  </div>
+                  {selectedOrder.paymentReference && (
+                    <div className="col-span-2">
+                      <p className="text-xs text-muted-foreground mb-1">Reference</p>
+                      <p className="font-mono text-sm">{selectedOrder.paymentReference}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="rounded-xl border border-border/60 p-4">
+                <p className="text-xs font-medium uppercase text-muted-foreground mb-3">Timeline</p>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Created</span>
+                    <span className="text-sm font-medium">{formatDate(selectedOrder.createdAt)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Items (if available) */}
+              {selectedOrder.items && selectedOrder.items.length > 0 && (
+                <div className="rounded-xl border border-border/60 p-4">
+                  <p className="text-xs font-medium uppercase text-muted-foreground mb-3">Items ({selectedOrder.items.length})</p>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    {selectedOrder.items.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between text-sm">
+                        <span>{item.name || item.productName || `Item ${idx + 1}`} × {item.quantity || item.qty || 1}</span>
+                        <span className="font-medium">{formatPrice(item.price * (item.quantity || item.qty || 1), selectedOrder.currency)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <Button variant="outline" onClick={() => setSelectedOrder(null)}>Close</Button>
             </div>
           </div>
         </div>
