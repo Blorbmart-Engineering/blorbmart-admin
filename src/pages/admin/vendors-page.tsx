@@ -75,7 +75,35 @@ export function VendorsPage() {
         }
         const payload = await response.json()
         if (!active) return
-        setVendors(payload?.data?.vendors || [])
+        
+        // Fetch additional user data for each vendor to get complete profile
+        const vendors = payload?.data?.vendors || []
+        const enrichedVendors = await Promise.all(
+          vendors.map(async (vendor: VendorRecord) => {
+            try {
+              const userLookupId = (vendor as any).userId || (vendor as any).uid || vendor.id
+              // Try to get user data to fill missing fields
+              const userResponse = await apiFetchAuth(`/api/admin/users/${userLookupId}`)
+              if (userResponse.ok) {
+                const userData = await userResponse.json()
+                const user = userData?.data
+                return {
+                  ...vendor,
+                  ownerName: vendor.ownerName || user?.firstName && user?.lastName
+                    ? `${user.firstName} ${user.lastName}`
+                    : user?.displayName || '—',
+                  email: vendor.email || user?.email || '—',
+                  phone: vendor.phone || user?.phone || '—',
+                }
+              }
+            } catch (error) {
+              // If user fetch fails, return vendor as-is
+            }
+            return vendor
+          })
+        )
+        
+        setVendors(enrichedVendors)
         setHasMore(Boolean(payload?.data?.pagination?.hasMore))
       } catch (err: any) {
         if (!active) return
@@ -129,8 +157,8 @@ export function VendorsPage() {
       if (!response.ok) {
         throw new Error('Failed to update vendor status')
       }
-      setSelectedVendor(null)
-      setPage(1)
+      setVendors((prev) => prev.map((v) => (v.id === vendor.id ? { ...v, status: nextStatus } : v)))
+      setSelectedVendor((prev) => (prev && prev.id === vendor.id ? { ...prev, status: nextStatus } : prev))
     } catch (err: any) {
       setError(err?.message || 'Failed to update vendor status')
     } finally {

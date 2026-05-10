@@ -196,6 +196,7 @@ export function UsersPage() {
             >
               <option value="all">All statuses</option>
               <option value="active">Active</option>
+              <option value="pending">Pending</option>
               <option value="suspended">Suspended</option>
               <option value="banned">Banned</option>
               <option value="disabled">Disabled</option>
@@ -278,6 +279,14 @@ export function UsersPage() {
                               onClick={() => setSelectedUser(user)}
                             >
                               View
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => applyAction(user.id, 'enable')}
+                              disabled={actionLoading?.startsWith(actionKey)}
+                            >
+                              Enable
                             </Button>
                             <Button
                               size="sm"

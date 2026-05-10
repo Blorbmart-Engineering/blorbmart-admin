@@ -61,6 +61,12 @@ const initialPromo = {
   active: true
 }
 
+const initialCommissionForm = {
+  categoryId: '',
+  categoryName: '',
+  commissionPercent: 10
+}
+
 export function SettingsPage() {
   const { apiFetchAuth } = useAuth()
   const [settings, setSettings] = useState<SettingsPayload>(initialSettings)
@@ -73,6 +79,7 @@ export function SettingsPage() {
 
   const [commissions, setCommissions] = useState<CategoryCommission[]>([])
   const [commissionSaving, setCommissionSaving] = useState(false)
+  const [commissionForm, setCommissionForm] = useState(initialCommissionForm)
 
   const loadSettings = useCallback(async () => {
     setLoading(true)
@@ -171,6 +178,30 @@ export function SettingsPage() {
       method: 'PATCH',
       body: JSON.stringify({ commissionPercent, active })
     })
+    await loadCommissions()
+    setCommissionSaving(false)
+  }
+
+  const createCommission = async () => {
+    if (!commissionForm.categoryId.trim() || !commissionForm.categoryName.trim()) return
+    setCommissionSaving(true)
+    await apiFetchAuth('/api/category-commission', {
+      method: 'POST',
+      body: JSON.stringify({
+        categoryId: commissionForm.categoryId.trim().toLowerCase(),
+        categoryName: commissionForm.categoryName.trim(),
+        commissionPercent: Number(commissionForm.commissionPercent || 0),
+        active: true
+      })
+    })
+    setCommissionForm(initialCommissionForm)
+    await loadCommissions()
+    setCommissionSaving(false)
+  }
+
+  const deleteCommission = async (categoryId: string) => {
+    setCommissionSaving(true)
+    await apiFetchAuth(`/api/category-commission/${categoryId}`, { method: 'DELETE' })
     await loadCommissions()
     setCommissionSaving(false)
   }
@@ -296,6 +327,33 @@ export function SettingsPage() {
             <CardDescription>Set platform commission rates per product category.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="rounded-2xl border border-border/60 p-4">
+              <p className="mb-3 text-sm font-medium">Add category commission</p>
+              <div className="grid gap-3 sm:grid-cols-4">
+                <Input
+                  placeholder="category_id"
+                  value={commissionForm.categoryId}
+                  onChange={(e) => setCommissionForm((prev) => ({ ...prev, categoryId: e.target.value }))}
+                />
+                <Input
+                  placeholder="Category name"
+                  value={commissionForm.categoryName}
+                  onChange={(e) => setCommissionForm((prev) => ({ ...prev, categoryName: e.target.value }))}
+                />
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  placeholder="Commission %"
+                  value={commissionForm.commissionPercent}
+                  onChange={(e) => setCommissionForm((prev) => ({ ...prev, commissionPercent: Number(e.target.value || 0) }))}
+                />
+                <Button onClick={createCommission} disabled={commissionSaving}>
+                  {commissionSaving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Plus className="mr-2 size-4" />}
+                  Add
+                </Button>
+              </div>
+            </div>
             {commissions.length === 0 ? (
               <p className="text-sm text-muted-foreground">Loading commissions...</p>
             ) : (
@@ -352,6 +410,14 @@ export function SettingsPage() {
                           disabled={commissionSaving}
                         >
                           {commissionSaving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteCommission(commission.categoryId)}
+                          disabled={commissionSaving}
+                        >
+                          <Trash2 className="size-4" />
                         </Button>
                       </div>
                     </div>

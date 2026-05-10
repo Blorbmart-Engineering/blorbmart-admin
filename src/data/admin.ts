@@ -1,6 +1,7 @@
 import {
   Bell,
   ChartColumnBig,
+  Coins,
   CreditCard,
   FileText,
   ImageIcon,
@@ -65,8 +66,9 @@ export const adminNavItems = [
   { label: 'Sellers', icon: Store, to: '/admin/sellers' },
   { label: 'Products', icon: ShoppingCart, to: '/admin/products' },
   { label: 'Orders', icon: Package, to: '/admin/orders' },
-  { label: 'Riders', icon: Truck, to: '/admin/riders' },
+  { label: 'Delivery', icon: Truck, to: '/admin/delivery' },
   { label: 'Finance', icon: CreditCard, to: '/admin/finance' },
+  { label: 'Commissions', icon: Coins, to: '/admin/commissions' },
   { label: 'Analytics', icon: ChartColumnBig, to: '/admin/analytics' },
   { label: 'Reviews', icon: Star, to: '/admin/reviews' },
   { label: 'Carousel', icon: ImageIcon, to: '/admin/carousel' },

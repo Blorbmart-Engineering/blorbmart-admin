@@ -8,6 +8,8 @@ import { ActivityPage } from '@/pages/admin/activity-page'
 import { ProductsPage } from '@/pages/admin/products-page'
 import { OrdersPage } from '@/pages/admin/orders-page'
 import { SettingsPage } from '@/pages/admin/settings-page'
+import { CommissionsPage } from '@/pages/admin/commissions-page'
+import { DeliveryPage } from '@/pages/admin/delivery-page'
 import { CarouselPage } from '@/pages/admin/carousel-page'
 import { LoginPage } from '@/pages/login-page'
 import { SignupPage } from '@/pages/signup-page'
@@ -64,9 +66,13 @@ function App() {
         />
         <Route
           path="/admin/riders"
+          element={<Navigate to="/admin/delivery" replace />}
+        />
+        <Route
+          path="/admin/delivery"
           element={
             <RequireAdmin>
-              <SectionPage sectionKey="riders" />
+              <DeliveryPage />
             </RequireAdmin>
           }
         />
@@ -131,6 +137,14 @@ function App() {
           element={
             <RequireAdmin>
               <SectionPage sectionKey="reports" />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/commissions"
+          element={
+            <RequireAdmin>
+              <CommissionsPage />
             </RequireAdmin>
           }
         />
