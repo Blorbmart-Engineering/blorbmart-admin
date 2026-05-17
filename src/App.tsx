@@ -11,6 +11,7 @@ import { SettingsPage } from '@/pages/admin/settings-page'
 import { CommissionsPage } from '@/pages/admin/commissions-page'
 import { DeliveryPage } from '@/pages/admin/delivery-page'
 import { CarouselPage } from '@/pages/admin/carousel-page'
+import { BroadcastPage } from '@/pages/admin/broadcast-page'
 import { LoginPage } from '@/pages/login-page'
 import { SignupPage } from '@/pages/signup-page'
 import { RequireAdmin } from '@/lib/auth'
@@ -161,6 +162,14 @@ function App() {
           element={
             <RequireAdmin>
               <CarouselPage />
+            </RequireAdmin>
+          }
+        />
+        <Route
+          path="/admin/broadcast"
+          element={
+            <RequireAdmin>
+              <BroadcastPage />
             </RequireAdmin>
           }
         />
