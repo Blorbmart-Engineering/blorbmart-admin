@@ -423,7 +423,7 @@ export function OrdersPage() {
                     {selectedOrder.items.map((item: OrderItem, idx: number) => (
                       <div key={idx} className="flex justify-between text-sm">
                         <span>{item.name || item.productName || `Item ${idx + 1}`} × {item.quantity || item.qty || 1}</span>
-                        <span className="font-medium">{formatPrice(item.price * (item.quantity || item.qty || 1), selectedOrder.currency)}</span>
+                        <span className="font-medium">{formatPrice((item.price ?? 0) * (item.quantity || item.qty || 1), selectedOrder.currency)}</span>
                       </div>
                     ))}
                   </div>
