@@ -1,15 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth'
 import type { User } from 'firebase/auth'
+import { Navigate } from 'react-router-dom'
 
 import { auth } from '@/lib/firebase'
 import { apiFetchWithToken } from '@/lib/api'
 
 type AuthContextValue = {
   user: User | null
-  loading: boolean
+  initializing: boolean
   isAdmin: boolean
-  adminLoading: boolean
   signIn: (email: string, password: string) => Promise<void>
   logOut: () => Promise<void>
   getToken: () => Promise<string | null>
@@ -20,65 +20,71 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [adminLoading, setAdminLoading] = useState(false)
-
-  const checkAdmin = useCallback(async (currentUser: User) => {
-    setAdminLoading(true)
-    try {
-      const token = await currentUser.getIdToken()
-      const response = await apiFetchWithToken('/api/admin/me', token)
-      if (response.ok) {
-        setIsAdmin(true)
-      } else {
-        setIsAdmin(false)
-      }
-    } catch {
-      setIsAdmin(false)
-    } finally {
-      setAdminLoading(false)
-    }
-  }, [])
+  const [initializing, setInitializing] = useState(true)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (nextUser) => {
+      setInitializing(true)
       setUser(nextUser)
-      setLoading(false)
       if (nextUser) {
-        checkAdmin(nextUser)
+        try {
+          const token = await nextUser.getIdToken()
+          const response = await apiFetchWithToken('/api/admin/me', token)
+          setIsAdmin(response.ok)
+        } catch {
+          setIsAdmin(false)
+        }
       } else {
         setIsAdmin(false)
       }
+      setInitializing(false)
     })
     return () => unsubscribe()
-  }, [checkAdmin])
+  }, [])
 
   const signIn = useCallback(async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password)
   }, [])
 
-  const getToken = useCallback(async () => {
+  const getToken = useCallback(async (forceRefresh = false) => {
     if (!auth.currentUser) return null
-    return auth.currentUser.getIdToken()
+    return auth.currentUser.getIdToken(forceRefresh)
   }, [])
-
-  const apiFetchAuth = useCallback(async (path: string, options: RequestInit = {}) => {
-    const token = await getToken()
-    if (!token) {
-      throw new Error('Missing auth token')
-    }
-    return apiFetchWithToken(path, token, options)
-  }, [getToken])
 
   const logOut = useCallback(async () => {
     await signOut(auth)
     setIsAdmin(false)
   }, [])
 
+  const apiFetchAuth = useCallback(async (path: string, options: RequestInit = {}) => {
+    const token = await getToken()
+    if (!token) throw new Error('Missing auth token')
+
+    const response = await apiFetchWithToken(path, token, options)
+
+    if (response.status !== 401) return response
+
+    // Token may be stale — force-refresh and retry once
+    try {
+      const freshToken = await getToken(true)
+      if (!freshToken) throw new Error('No token after refresh')
+      const retried = await apiFetchWithToken(path, freshToken, options)
+      if (retried.status !== 401) return retried
+    } catch {
+      // refresh failed — fall through to sign-out
+    }
+
+    // Session is dead — sign out and send to login
+    await signOut(auth)
+    setIsAdmin(false)
+    window.location.replace('/login')
+    throw new Error('Session expired. Please sign in again.')
+  }, [getToken])
+
   const value = useMemo(
-    () => ({ user, loading, isAdmin, adminLoading, signIn, logOut, getToken, apiFetchAuth }),
-    [user, loading, isAdmin, adminLoading, signIn, logOut, getToken, apiFetchAuth]
+    () => ({ user, initializing, isAdmin, signIn, logOut, getToken, apiFetchAuth }),
+    [user, initializing, isAdmin, signIn, logOut, getToken, apiFetchAuth]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -93,20 +99,27 @@ export function useAuth() {
 }
 
 export function RequireAdmin({ children }: { children: React.ReactNode }) {
-  const { user, loading, isAdmin, adminLoading } = useAuth()
+  const { user, initializing, isAdmin } = useAuth()
 
-  if (loading || adminLoading) {
+  if (initializing) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-        Checking access...
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-foreground" />
+          <span className="text-sm text-muted-foreground">Loading...</span>
+        </div>
       </div>
     )
   }
 
-  if (!user || !isAdmin) {
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!isAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-        Access denied.
+        Access denied. This account does not have admin privileges.
       </div>
     )
   }

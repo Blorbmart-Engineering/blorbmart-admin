@@ -20,7 +20,7 @@ type ActivityRecord = {
 }
 
 function formatDate(value: any) {
-  if (!value) return 'â€”'
+  if (!value) return '—'
   if (typeof value.toDate === 'function') {
     return value.toDate().toLocaleString()
   }
@@ -31,7 +31,7 @@ function formatDate(value: any) {
     return new Date(value._seconds * 1000).toLocaleString()
   }
   const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? 'â€”' : date.toLocaleString()
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString()
 }
 
 export function ActivityPage() {
@@ -188,15 +188,15 @@ export function ActivityPage() {
                   {activity.map((item) => (
                     <tr key={item.id} className="border-b border-border/40">
                       <td className="py-3 pr-4">
-                        <Badge variant="outline">{item.type || 'â€”'}</Badge>
+                        <Badge variant="outline">{item.type || '—'}</Badge>
                       </td>
                       <td className="py-3 pr-4">
                         {(item.actorType || 'user') + (item.actorId ? `:${item.actorId}` : '')}
                       </td>
                       <td className="py-3 pr-4">
-                        {(item.targetType || 'â€”') + (item.targetId ? `:${item.targetId}` : '')}
+                        {(item.targetType || '—') + (item.targetId ? `:${item.targetId}` : '')}
                       </td>
-                      <td className="py-3 pr-4">{item.message || 'â€”'}</td>
+                      <td className="py-3 pr-4">{item.message || '—'}</td>
                       <td className="py-3 pr-4">{formatDate(item.createdAt)}</td>
                       <td className="py-3 pr-4">
                         <Button size="sm" variant="secondary" onClick={() => setSelectedItem(item)}>
@@ -249,10 +249,10 @@ export function ActivityPage() {
             </div>
             <div className="mt-6 grid gap-4">
               {[
-                ['Type', selectedItem.type || 'â€”'],
-                ['Actor', `${selectedItem.actorType || 'â€”'}${selectedItem.actorId ? `:${selectedItem.actorId}` : ''}`],
-                ['Target', `${selectedItem.targetType || 'â€”'}${selectedItem.targetId ? `:${selectedItem.targetId}` : ''}`],
-                ['Message', selectedItem.message || 'â€”'],
+                ['Type', selectedItem.type || '—'],
+                ['Actor', `${selectedItem.actorType || '—'}${selectedItem.actorId ? `:${selectedItem.actorId}` : ''}`],
+                ['Target', `${selectedItem.targetType || '—'}${selectedItem.targetId ? `:${selectedItem.targetId}` : ''}`],
+                ['Message', selectedItem.message || '—'],
                 ['Time', formatDate(selectedItem.createdAt)]
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl border border-border/60 p-4">

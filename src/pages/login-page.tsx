@@ -12,7 +12,7 @@ import { useAuth } from '@/lib/auth'
 
 export function LoginPage() {
   const navigate = useNavigate()
-  const { signIn, user, isAdmin } = useAuth()
+  const { signIn, user, isAdmin, initializing } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -24,10 +24,9 @@ export function LoginPage() {
     setLoading(true)
     try {
       await signIn(email, password)
-      navigate('/admin/overview')
+      // Navigation handled by useEffect below once admin check completes
     } catch (err: any) {
       setError(err?.message || 'Login failed')
-    } finally {
       setLoading(false)
     }
   }
@@ -36,7 +35,12 @@ export function LoginPage() {
     if (user && isAdmin) {
       navigate('/admin/overview', { replace: true })
     }
-  }, [user, isAdmin, navigate])
+    // Admin check finished but user is not an admin — reset the form
+    if (loading && !initializing && user && !isAdmin) {
+      setError('This account does not have admin privileges.')
+      setLoading(false)
+    }
+  }, [user, isAdmin, initializing, navigate, loading])
 
   return (
     <main className="grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]">

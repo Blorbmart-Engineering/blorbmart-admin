@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { AdminShell } from '@/components/admin/admin-shell'
 import { Button } from '@/components/ui/button'
@@ -72,46 +73,69 @@ export function SettingsPage() {
   const [settings, setSettings] = useState<SettingsPayload>(initialSettings)
   const [savingSettings, setSavingSettings] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [settingsError, setSettingsError] = useState('')
 
   const [promos, setPromos] = useState<PromoCode[]>([])
+  const [promosLoaded, setPromosLoaded] = useState(false)
   const [promoForm, setPromoForm] = useState(initialPromo)
   const [promoSaving, setPromoSaving] = useState(false)
 
   const [commissions, setCommissions] = useState<CategoryCommission[]>([])
+  const [commissionsLoaded, setCommissionsLoaded] = useState(false)
   const [commissionSaving, setCommissionSaving] = useState(false)
   const [commissionForm, setCommissionForm] = useState(initialCommissionForm)
 
   const loadSettings = useCallback(async () => {
     setLoading(true)
-    const response = await apiFetchAuth('/api/admin/settings')
-    const data = await response.json().catch(() => ({}))
-    if (response.ok && data?.data) {
-      setSettings({
-        deliveryFee: Number(data.data.deliveryFee ?? 1000),
-        serviceFee: Number(data.data.serviceFee ?? 100),
-        payoutHoldHours: Number(data.data.payoutHoldHours ?? 0),
-        buyerReferralEnabled: Boolean(data.data.buyerReferralEnabled ?? true),
-        buyerReferralRewardNaira: Number(data.data.buyerReferralRewardNaira ?? 200),
-        requireLandmark: Boolean(data.data.requireLandmark ?? true),
-        addressNotes: String(data.data.addressNotes ?? '')
-      })
+    setSettingsError('')
+    try {
+      const response = await apiFetchAuth('/api/admin/settings')
+      const data = await response.json().catch(() => ({}))
+      if (response.ok && data?.data) {
+        setSettings({
+          deliveryFee: Number(data.data.deliveryFee ?? 1000),
+          serviceFee: Number(data.data.serviceFee ?? 100),
+          payoutHoldHours: Number(data.data.payoutHoldHours ?? 0),
+          buyerReferralEnabled: Boolean(data.data.buyerReferralEnabled ?? true),
+          buyerReferralRewardNaira: Number(data.data.buyerReferralRewardNaira ?? 200),
+          requireLandmark: Boolean(data.data.requireLandmark ?? true),
+          addressNotes: String(data.data.addressNotes ?? '')
+        })
+      } else {
+        setSettingsError('Failed to load settings.')
+      }
+    } catch {
+      setSettingsError('Failed to load settings.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [apiFetchAuth])
 
   const loadPromos = useCallback(async () => {
-    const response = await apiFetchAuth('/api/admin/promo-codes')
-    const data = await response.json().catch(() => ({}))
-    if (response.ok && Array.isArray(data?.data)) {
-      setPromos(data.data as PromoCode[])
+    try {
+      const response = await apiFetchAuth('/api/admin/promo-codes')
+      const data = await response.json().catch(() => ({}))
+      if (response.ok && Array.isArray(data?.data)) {
+        setPromos(data.data as PromoCode[])
+      }
+    } catch {
+      // non-fatal, list stays empty
+    } finally {
+      setPromosLoaded(true)
     }
   }, [apiFetchAuth])
 
   const loadCommissions = useCallback(async () => {
-    const response = await apiFetchAuth('/api/category-commission')
-    const data = await response.json().catch(() => ({}))
-    if (response.ok && Array.isArray(data?.data)) {
-      setCommissions(data.data as CategoryCommission[])
+    try {
+      const response = await apiFetchAuth('/api/category-commission')
+      const data = await response.json().catch(() => ({}))
+      if (response.ok && Array.isArray(data?.data)) {
+        setCommissions(data.data as CategoryCommission[])
+      }
+    } catch {
+      // non-fatal, list stays empty
+    } finally {
+      setCommissionsLoaded(true)
     }
   }, [apiFetchAuth])
 
@@ -123,87 +147,161 @@ export function SettingsPage() {
 
   const saveSettings = async () => {
     setSavingSettings(true)
-    await apiFetchAuth('/api/admin/settings', {
-      method: 'PATCH',
-      body: JSON.stringify({
-        deliveryFee: Number(settings.deliveryFee || 0),
-        serviceFee: Number(settings.serviceFee || 0),
-        payoutHoldHours: Number(settings.payoutHoldHours || 0),
-        buyerReferralEnabled: Boolean(settings.buyerReferralEnabled),
-        buyerReferralRewardNaira: Number(settings.buyerReferralRewardNaira || 0),
-        requireLandmark: Boolean(settings.requireLandmark),
-        addressNotes: settings.addressNotes
+    try {
+      const response = await apiFetchAuth('/api/admin/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          deliveryFee: Number(settings.deliveryFee || 0),
+          serviceFee: Number(settings.serviceFee || 0),
+          payoutHoldHours: Number(settings.payoutHoldHours || 0),
+          buyerReferralEnabled: Boolean(settings.buyerReferralEnabled),
+          buyerReferralRewardNaira: Number(settings.buyerReferralRewardNaira || 0),
+          requireLandmark: Boolean(settings.requireLandmark),
+          addressNotes: settings.addressNotes
+        })
       })
-    })
-    setSavingSettings(false)
+      if (response.ok) {
+        toast.success('Settings saved')
+      } else {
+        const data = await response.json().catch(() => ({}))
+        toast.error(data?.message || 'Failed to save settings')
+      }
+    } catch {
+      toast.error('Failed to save settings')
+    } finally {
+      setSavingSettings(false)
+    }
   }
 
   const createPromo = async () => {
     if (!promoForm.code.trim()) return
     setPromoSaving(true)
-    await apiFetchAuth('/api/admin/promo-codes', {
-      method: 'POST',
-      body: JSON.stringify({
-        code: promoForm.code.trim(),
-        type: promoForm.type,
-        value: Number(promoForm.value || 0),
-        maxDiscount: promoForm.maxDiscount ? Number(promoForm.maxDiscount) : null,
-        minOrderAmount: promoForm.minOrderAmount ? Number(promoForm.minOrderAmount) : null,
-        usageLimit: promoForm.usageLimit ? Number(promoForm.usageLimit) : null,
-        description: promoForm.description,
-        active: promoForm.active
+    try {
+      const response = await apiFetchAuth('/api/admin/promo-codes', {
+        method: 'POST',
+        body: JSON.stringify({
+          code: promoForm.code.trim(),
+          type: promoForm.type,
+          value: Number(promoForm.value || 0),
+          maxDiscount: promoForm.maxDiscount ? Number(promoForm.maxDiscount) : null,
+          minOrderAmount: promoForm.minOrderAmount ? Number(promoForm.minOrderAmount) : null,
+          usageLimit: promoForm.usageLimit ? Number(promoForm.usageLimit) : null,
+          description: promoForm.description,
+          active: promoForm.active
+        })
       })
-    })
-    setPromoForm(initialPromo)
-    await loadPromos()
-    setPromoSaving(false)
+      if (response.ok) {
+        toast.success('Promo code created')
+        setPromoForm(initialPromo)
+        await loadPromos()
+      } else {
+        const data = await response.json().catch(() => ({}))
+        toast.error(data?.message || 'Failed to create promo code')
+      }
+    } catch {
+      toast.error('Failed to create promo code')
+    } finally {
+      setPromoSaving(false)
+    }
   }
 
   const togglePromo = async (promo: PromoCode) => {
-    await apiFetchAuth(`/api/admin/promo-codes/${promo.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ active: !promo.active })
-    })
-    await loadPromos()
+    try {
+      const response = await apiFetchAuth(`/api/admin/promo-codes/${promo.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ active: !promo.active })
+      })
+      if (response.ok) {
+        await loadPromos()
+      } else {
+        const data = await response.json().catch(() => ({}))
+        toast.error(data?.message || 'Failed to update promo code')
+      }
+    } catch {
+      toast.error('Failed to update promo code')
+    }
   }
 
   const deletePromo = async (promoId: string) => {
-    await apiFetchAuth(`/api/admin/promo-codes/${promoId}`, { method: 'DELETE' })
-    await loadPromos()
+    try {
+      const response = await apiFetchAuth(`/api/admin/promo-codes/${promoId}`, { method: 'DELETE' })
+      if (response.ok) {
+        toast.success('Promo code deleted')
+        await loadPromos()
+      } else {
+        const data = await response.json().catch(() => ({}))
+        toast.error(data?.message || 'Failed to delete promo code')
+      }
+    } catch {
+      toast.error('Failed to delete promo code')
+    }
   }
 
   const updateCommission = async (categoryId: string, commissionPercent: number, active: boolean) => {
     setCommissionSaving(true)
-    await apiFetchAuth(`/api/category-commission/${categoryId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ commissionPercent, active })
-    })
-    await loadCommissions()
-    setCommissionSaving(false)
+    try {
+      const response = await apiFetchAuth(`/api/category-commission/${categoryId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ commissionPercent, active })
+      })
+      if (response.ok) {
+        toast.success('Commission updated')
+        await loadCommissions()
+      } else {
+        const data = await response.json().catch(() => ({}))
+        toast.error(data?.message || 'Failed to update commission')
+      }
+    } catch {
+      toast.error('Failed to update commission')
+    } finally {
+      setCommissionSaving(false)
+    }
   }
 
   const createCommission = async () => {
     if (!commissionForm.categoryId.trim() || !commissionForm.categoryName.trim()) return
     setCommissionSaving(true)
-    await apiFetchAuth('/api/category-commission', {
-      method: 'POST',
-      body: JSON.stringify({
-        categoryId: commissionForm.categoryId.trim().toLowerCase(),
-        categoryName: commissionForm.categoryName.trim(),
-        commissionPercent: Number(commissionForm.commissionPercent || 0),
-        active: true
+    try {
+      const response = await apiFetchAuth('/api/category-commission', {
+        method: 'POST',
+        body: JSON.stringify({
+          categoryId: commissionForm.categoryId.trim().toLowerCase(),
+          categoryName: commissionForm.categoryName.trim(),
+          commissionPercent: Number(commissionForm.commissionPercent || 0),
+          active: true
+        })
       })
-    })
-    setCommissionForm(initialCommissionForm)
-    await loadCommissions()
-    setCommissionSaving(false)
+      if (response.ok) {
+        toast.success('Commission created')
+        setCommissionForm(initialCommissionForm)
+        await loadCommissions()
+      } else {
+        const data = await response.json().catch(() => ({}))
+        toast.error(data?.message || 'Failed to create commission')
+      }
+    } catch {
+      toast.error('Failed to create commission')
+    } finally {
+      setCommissionSaving(false)
+    }
   }
 
   const deleteCommission = async (categoryId: string) => {
     setCommissionSaving(true)
-    await apiFetchAuth(`/api/category-commission/${categoryId}`, { method: 'DELETE' })
-    await loadCommissions()
-    setCommissionSaving(false)
+    try {
+      const response = await apiFetchAuth(`/api/category-commission/${categoryId}`, { method: 'DELETE' })
+      if (response.ok) {
+        toast.success('Commission deleted')
+        await loadCommissions()
+      } else {
+        const data = await response.json().catch(() => ({}))
+        toast.error(data?.message || 'Failed to delete commission')
+      }
+    } catch {
+      toast.error('Failed to delete commission')
+    } finally {
+      setCommissionSaving(false)
+    }
   }
 
   return (
@@ -220,6 +318,8 @@ export function SettingsPage() {
                 <Loader2 className="size-4 animate-spin" />
                 Loading settings...
               </div>
+            ) : settingsError ? (
+              <p className="text-sm text-destructive">{settingsError}</p>
             ) : (
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -354,8 +454,13 @@ export function SettingsPage() {
                 </Button>
               </div>
             </div>
-            {commissions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Loading commissions...</p>
+            {!commissionsLoaded ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                Loading commissions...
+              </div>
+            ) : commissions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No commissions configured yet.</p>
             ) : (
               <div className="space-y-3">
                 {commissions.map((commission) => (
@@ -515,7 +620,12 @@ export function SettingsPage() {
             <Separator />
 
             <div className="space-y-3">
-              {promos.length === 0 ? (
+              {!promosLoaded ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  Loading promo codes...
+                </div>
+              ) : promos.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No promo codes yet.</p>
               ) : (
                 promos.map((promo) => (

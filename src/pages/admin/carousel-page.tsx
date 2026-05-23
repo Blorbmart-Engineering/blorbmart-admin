@@ -466,7 +466,7 @@ function SlideForm({
 // Main Carousel Page
 export function CarouselPage() {
   const { apiFetchAuth } = useAuth()
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000'
+  const API_BASE = import.meta.env.VITE_API_URL || ''
   const [slides, setSlides] = useState<CarouselSlide[]>([])
   const [loading, setLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)

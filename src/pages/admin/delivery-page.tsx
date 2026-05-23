@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Loader2, Plus, Save, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { AdminShell } from '@/components/admin/admin-shell'
 import { Button } from '@/components/ui/button'
@@ -30,6 +31,7 @@ export function DeliveryPage() {
   const { apiFetchAuth } = useAuth()
   const [landmarks, setLandmarks] = useState<DeliveryLandmark[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [saving, setSaving] = useState(false)
   const [landmarkForm, setLandmarkForm] = useState(initialLandmarkForm)
   const [settings, setSettings] = useState<SettingsPayload>({
@@ -40,25 +42,33 @@ export function DeliveryPage() {
 
   const loadAll = useCallback(async () => {
     setLoading(true)
-    const [landmarksRes, settingsRes] = await Promise.all([
-      apiFetchAuth('/api/admin/delivery-landmarks'),
-      apiFetchAuth('/api/admin/settings')
-    ])
+    setLoadError('')
+    try {
+      const [landmarksRes, settingsRes] = await Promise.all([
+        apiFetchAuth('/api/admin/delivery-landmarks'),
+        apiFetchAuth('/api/admin/settings')
+      ])
 
-    const landmarksData = await landmarksRes.json().catch(() => ({}))
-    const settingsData = await settingsRes.json().catch(() => ({}))
+      const landmarksData = await landmarksRes.json().catch(() => ({}))
+      const settingsData = await settingsRes.json().catch(() => ({}))
 
-    if (landmarksRes.ok && Array.isArray(landmarksData?.data)) {
-      setLandmarks(landmarksData.data as DeliveryLandmark[])
+      if (landmarksRes.ok && Array.isArray(landmarksData?.data)) {
+        setLandmarks(landmarksData.data as DeliveryLandmark[])
+      } else if (!landmarksRes.ok) {
+        setLoadError('Failed to load delivery landmarks.')
+      }
+      if (settingsRes.ok && settingsData?.data) {
+        setSettings({
+          deliveryFee: Number(settingsData.data.deliveryFee ?? 500),
+          requireLandmark: Boolean(settingsData.data.requireLandmark ?? true),
+          addressNotes: String(settingsData.data.addressNotes ?? '')
+        })
+      }
+    } catch {
+      setLoadError('Failed to load delivery data.')
+    } finally {
+      setLoading(false)
     }
-    if (settingsRes.ok && settingsData?.data) {
-      setSettings({
-        deliveryFee: Number(settingsData.data.deliveryFee ?? 500),
-        requireLandmark: Boolean(settingsData.data.requireLandmark ?? true),
-        addressNotes: String(settingsData.data.addressNotes ?? '')
-      })
-    }
-    setLoading(false)
   }, [apiFetchAuth])
 
   useEffect(() => {
@@ -68,52 +78,96 @@ export function DeliveryPage() {
   const addLandmark = async () => {
     if (!landmarkForm.name.trim()) return
     setSaving(true)
-    await apiFetchAuth('/api/admin/delivery-landmarks', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: landmarkForm.name.trim(),
-        price: Number(landmarkForm.price || 0),
-        active: true
+    try {
+      const response = await apiFetchAuth('/api/admin/delivery-landmarks', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: landmarkForm.name.trim(),
+          price: Number(landmarkForm.price || 0),
+          active: true
+        })
       })
-    })
-    setLandmarkForm(initialLandmarkForm)
-    await loadAll()
-    setSaving(false)
+      if (response.ok) {
+        toast.success('Landmark added')
+        setLandmarkForm(initialLandmarkForm)
+        await loadAll()
+      } else {
+        const data = await response.json().catch(() => ({}))
+        toast.error(data?.message || 'Failed to add landmark')
+      }
+    } catch {
+      toast.error('Failed to add landmark')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const saveLandmark = async (landmark: DeliveryLandmark) => {
     setSaving(true)
-    await apiFetchAuth(`/api/admin/delivery-landmarks/${landmark.id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        name: landmark.name,
-        price: Number(landmark.price || 0),
-        active: landmark.active
+    try {
+      const response = await apiFetchAuth(`/api/admin/delivery-landmarks/${landmark.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: landmark.name,
+          price: Number(landmark.price || 0),
+          active: landmark.active
+        })
       })
-    })
-    await loadAll()
-    setSaving(false)
+      if (response.ok) {
+        toast.success('Landmark saved')
+        await loadAll()
+      } else {
+        const data = await response.json().catch(() => ({}))
+        toast.error(data?.message || 'Failed to save landmark')
+      }
+    } catch {
+      toast.error('Failed to save landmark')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const removeLandmark = async (id: string) => {
     setSaving(true)
-    await apiFetchAuth(`/api/admin/delivery-landmarks/${id}`, { method: 'DELETE' })
-    await loadAll()
-    setSaving(false)
+    try {
+      const response = await apiFetchAuth(`/api/admin/delivery-landmarks/${id}`, { method: 'DELETE' })
+      if (response.ok) {
+        toast.success('Landmark removed')
+        await loadAll()
+      } else {
+        const data = await response.json().catch(() => ({}))
+        toast.error(data?.message || 'Failed to remove landmark')
+      }
+    } catch {
+      toast.error('Failed to remove landmark')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const saveSettings = async () => {
     setSaving(true)
-    await apiFetchAuth('/api/admin/settings', {
-      method: 'PATCH',
-      body: JSON.stringify({
-        deliveryFee: Number(settings.deliveryFee || 0),
-        requireLandmark: true,
-        addressNotes: settings.addressNotes
+    try {
+      const response = await apiFetchAuth('/api/admin/settings', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          deliveryFee: Number(settings.deliveryFee || 0),
+          requireLandmark: true,
+          addressNotes: settings.addressNotes
+        })
       })
-    })
-    await loadAll()
-    setSaving(false)
+      if (response.ok) {
+        toast.success('Delivery settings saved')
+        await loadAll()
+      } else {
+        const data = await response.json().catch(() => ({}))
+        toast.error(data?.message || 'Failed to save settings')
+      }
+    } catch {
+      toast.error('Failed to save settings')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -176,10 +230,17 @@ export function DeliveryPage() {
             </div>
 
             {loading ? (
-              <p className="text-sm text-muted-foreground">Loading delivery landmarks...</p>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                Loading delivery landmarks...
+              </div>
+            ) : loadError ? (
+              <p className="text-sm text-destructive">{loadError}</p>
             ) : (
               <div className="space-y-3">
-                {landmarks.map((landmark) => (
+                {landmarks.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No landmarks yet. Add one to start location pricing.</p>
+                ) : landmarks.map((landmark) => (
                   <div key={landmark.id} className="rounded-2xl border border-border/60 p-4">
                     <div className="grid gap-3 sm:grid-cols-[1.4fr_0.8fr_auto_auto_auto] sm:items-center">
                       <Input
@@ -214,9 +275,6 @@ export function DeliveryPage() {
                     </div>
                   </div>
                 ))}
-                {landmarks.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No landmarks yet. Add one to start location pricing.</p>
-                ) : null}
               </div>
             )}
           </CardContent>
