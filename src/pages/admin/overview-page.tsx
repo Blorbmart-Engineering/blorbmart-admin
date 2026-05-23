@@ -69,7 +69,7 @@ const glassCard = 'border-indigo-100/60 bg-white/60 backdrop-blur-xl dark:border
 
 export function OverviewPage() {
   const { apiFetchAuth } = useAuth()
-  const [metrics, setMetrics] = useState<{ counts: any; last24h: any; approximate: boolean } | null>(null)
+  const [metrics, setMetrics] = useState<{ counts: Record<string, number>; last24h: Record<string, number>; approximate: boolean } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

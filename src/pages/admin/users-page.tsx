@@ -17,22 +17,22 @@ type UserRecord = {
   phone?: string
   role?: string
   accountStatus?: string
-  createdAt?: any
+  createdAt?: unknown
 }
 
-function formatDate(value: any) {
+function formatDate(value: unknown): string {
   if (!value) return '—'
-  if (typeof value.toDate === 'function') {
-    return value.toDate().toLocaleString()
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>
+    if (typeof obj.toDate === 'function') return (obj.toDate as () => Date)().toLocaleString()
+    if (typeof obj.seconds === 'number') return new Date(obj.seconds * 1000).toLocaleString()
+    if (typeof obj._seconds === 'number') return new Date(obj._seconds * 1000).toLocaleString()
   }
-  if (typeof value.seconds === 'number') {
-    return new Date(value.seconds * 1000).toLocaleString()
+  if (typeof value === 'string' || typeof value === 'number') {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString()
   }
-  if (typeof value._seconds === 'number') {
-    return new Date(value._seconds * 1000).toLocaleString()
-  }
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString()
+  return '—'
 }
 
 export function UsersPage() {
@@ -77,9 +77,9 @@ export function UsersPage() {
         if (!active) return
         setUsers(payload?.data?.users || [])
         setHasMore(Boolean(payload?.data?.pagination?.hasMore))
-      } catch (err: any) {
+      } catch (err) {
         if (!active) return
-        setError(err?.message || 'Failed to load users')
+        setError(err instanceof Error ? err.message : 'Failed to load users')
       } finally {
         if (active) setLoading(false)
       }
@@ -113,8 +113,8 @@ export function UsersPage() {
       setUsers((prev) =>
         prev.map((user) => (user.id === userId ? { ...user, accountStatus: nextStatus } : user))
       )
-    } catch (err: any) {
-      setError(err?.message || 'Failed to apply action')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to apply action')
     } finally {
       setActionLoading(null)
     }
@@ -168,8 +168,8 @@ export function UsersPage() {
       link.download = `users-export-${Date.now()}.csv`
       link.click()
       URL.revokeObjectURL(url)
-    } catch (err: any) {
-      setError(err?.message || 'Failed to export users')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export users')
     }
   }
 

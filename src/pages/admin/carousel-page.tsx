@@ -12,7 +12,7 @@ import {
   X,
   Loader2
 } from 'lucide-react'
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
@@ -182,7 +182,7 @@ function SlideForm({
   saving
 }: { 
   slide?: CarouselSlide
-  onSave: (data: any) => void
+  onSave: (data: Omit<CarouselSlide, 'id' | 'displayOrder' | 'viewCount' | 'clickCount'>) => void
   onCancel: () => void
   saving: boolean
 }) {
@@ -486,15 +486,10 @@ export function CarouselPage() {
     return value
   }, [API_BASE])
 
-  const normalizeSlide = useCallback((raw: any): CarouselSlide => {
-    const imageCandidate =
-      raw.imageUrl ||
-      raw.imageURL ||
-      raw.image ||
-      raw.bannerImage ||
-      raw.banner ||
-      ''
-
+  const normalizeSlide = useCallback((raw: Record<string, unknown>): CarouselSlide => {
+    const imageCandidate = String(
+      raw.imageUrl ?? raw.imageURL ?? raw.image ?? raw.bannerImage ?? raw.banner ?? ''
+    )
     return {
       ...raw,
       imageUrl: resolveImageUrl(imageCandidate),
@@ -509,9 +504,9 @@ export function CarouselPage() {
       if (!response.ok) throw new Error('Failed to load carousel slides')
       const data = await response.json()
       if (data.status === 'success') {
-        setSlides(Array.isArray(data.data) ? data.data.map(normalizeSlide) : [])
+        setSlides(Array.isArray(data.data) ? (data.data as Record<string, unknown>[]).map(normalizeSlide) : [])
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to load carousel slides')
     } finally {
       setRefreshing(false)
@@ -524,7 +519,7 @@ export function CarouselPage() {
   }, [fetchSlides])
 
   // Handle drag end
-  const handleDragEnd = useCallback(async (event: any) => {
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event
 
     if (!over || active.id === over.id) return
@@ -560,7 +555,7 @@ export function CarouselPage() {
   }, [apiFetchAuth])
 
   // Create/Update slide
-  const handleSave = async (formData: any) => {
+  const handleSave = async (formData: Omit<CarouselSlide, 'id' | 'displayOrder' | 'viewCount' | 'clickCount'>) => {
     if (saving) return
     try {
       setSaving(true)
@@ -584,7 +579,7 @@ export function CarouselPage() {
       } else {
         toast.error(data.message || 'Failed to save slide')
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to save slide')
     } finally {
       setSaving(false)
@@ -608,7 +603,7 @@ export function CarouselPage() {
       } else {
         toast.error(data.message || 'Failed to delete slide')
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete slide')
     } finally {
       setDeletingIds((prev) => ({ ...prev, [id]: false }))
@@ -630,7 +625,7 @@ export function CarouselPage() {
       } else {
         toast.error(data.message || 'Failed to toggle status')
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to toggle status')
     } finally {
       setTogglingIds((prev) => ({ ...prev, [id]: false }))

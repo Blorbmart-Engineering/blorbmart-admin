@@ -37,8 +37,17 @@ export function CommissionsPage() {
   }, [apiFetchAuth])
 
   useEffect(() => {
-    loadCommissions()
-  }, [loadCommissions])
+    let active = true
+    apiFetchAuth('/api/category-commission')
+      .then((r) => r.json().catch(() => ({})))
+      .then((data: { data?: CategoryCommission[] }) => {
+        if (active && Array.isArray(data?.data)) {
+          setCommissions(data.data)
+        }
+      })
+      .catch(() => {})
+    return () => { active = false }
+  }, [apiFetchAuth])
 
   const updateCommission = async (categoryId: string, commissionPercent: number, active: boolean) => {
     setCommissionSaving(true)

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { AdminShell } from '@/components/admin/admin-shell'
 import { Badge } from '@/components/ui/badge'
@@ -7,6 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/lib/auth'
+
+type OrderItem = {
+  name?: string
+  productName?: string
+  quantity?: number
+  qty?: number
+  price?: number
+}
 
 type OrderRecord = {
   id: string
@@ -22,24 +30,24 @@ type OrderRecord = {
   paymentStatus?: string
   paymentMethod?: string
   paymentReference?: string
-  createdAt?: any
-  items?: any[]
-  shippingAddress?: any
+  createdAt?: unknown
+  items?: OrderItem[]
+  shippingAddress?: Record<string, unknown>
 }
 
-function formatDate(value: any) {
+function formatDate(value: unknown): string {
   if (!value) return '—'
-  if (typeof value.toDate === 'function') {
-    return value.toDate().toLocaleString()
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>
+    if (typeof obj.toDate === 'function') return (obj.toDate as () => Date)().toLocaleString()
+    if (typeof obj.seconds === 'number') return new Date(obj.seconds * 1000).toLocaleString()
+    if (typeof obj._seconds === 'number') return new Date(obj._seconds * 1000).toLocaleString()
   }
-  if (typeof value.seconds === 'number') {
-    return new Date(value.seconds * 1000).toLocaleString()
+  if (typeof value === 'string' || typeof value === 'number') {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString()
   }
-  if (typeof value._seconds === 'number') {
-    return new Date(value._seconds * 1000).toLocaleString()
-  }
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString()
+  return '—'
 }
 
 function formatPrice(value?: number, currency?: string) {
@@ -91,9 +99,9 @@ export function OrdersPage() {
         if (!active) return
         setOrders(payload?.data?.orders || [])
         setHasMore(Boolean(payload?.data?.pagination?.hasMore))
-      } catch (err: any) {
+      } catch (err) {
         if (!active) return
-        setError(err?.message || 'Failed to load orders')
+        setError(err instanceof Error ? err.message : 'Failed to load orders')
       } finally {
         if (active) setLoading(false)
       }
@@ -107,7 +115,7 @@ export function OrdersPage() {
 
   const [buyerCache, setBuyerCache] = useState<Record<string, { name?: string; email?: string; phone?: string }>>({})
 
-  const fetchBuyerDetails = async (userId: string) => {
+  const fetchBuyerDetails = useCallback(async (userId: string) => {
     if (!userId || buyerCache[userId]) return
     try {
       const response = await apiFetchAuth(`/api/admin/users?q=${encodeURIComponent(userId)}&limit=1`)
@@ -127,21 +135,20 @@ export function OrdersPage() {
     } catch (err) {
       console.error('Failed to fetch buyer:', err)
     }
-  }
+  }, [apiFetchAuth, buyerCache])
 
   useEffect(() => {
     if (selectedOrder?.userId) {
       fetchBuyerDetails(selectedOrder.userId)
     }
-  }, [selectedOrder])
+  }, [selectedOrder, fetchBuyerDetails])
 
   // Fetch buyer details for all orders in the list
   useEffect(() => {
     const userIds = orders.map(o => o.userId).filter((id): id is string => !!id && !buyerCache[id])
-    const uniqueIds = [...new Set(userIds)].slice(0, 10) // Limit to 10 at a time
+    const uniqueIds = [...new Set(userIds)].slice(0, 10)
     uniqueIds.forEach(id => fetchBuyerDetails(id))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [orders])
+  }, [orders, buyerCache, fetchBuyerDetails])
 
   const handleExport = async () => {
     try {
@@ -164,8 +171,8 @@ export function OrdersPage() {
       link.download = `orders-export-${Date.now()}.csv`
       link.click()
       URL.revokeObjectURL(url)
-    } catch (err: any) {
-      setError(err?.message || 'Failed to export orders')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export orders')
     }
   }
 
@@ -413,7 +420,7 @@ export function OrdersPage() {
                 <div className="rounded-xl border border-border/60 p-4">
                   <p className="text-xs font-medium uppercase text-muted-foreground mb-3">Items ({selectedOrder.items.length})</p>
                   <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {selectedOrder.items.map((item: any, idx: number) => (
+                    {selectedOrder.items.map((item: OrderItem, idx: number) => (
                       <div key={idx} className="flex justify-between text-sm">
                         <span>{item.name || item.productName || `Item ${idx + 1}`} × {item.quantity || item.qty || 1}</span>
                         <span className="font-medium">{formatPrice(item.price * (item.quantity || item.qty || 1), selectedOrder.currency)}</span>

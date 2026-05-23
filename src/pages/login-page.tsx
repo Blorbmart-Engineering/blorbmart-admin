@@ -18,6 +18,9 @@ export function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // Derived: a login attempt is in-flight and auth check came back non-admin
+  const nonAdminBlocked = loading && !initializing && !!user && !isAdmin
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setError('')
@@ -25,8 +28,8 @@ export function LoginPage() {
     try {
       await signIn(email, password)
       // Navigation handled by useEffect below once admin check completes
-    } catch (err: any) {
-      setError(err?.message || 'Login failed')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed')
       setLoading(false)
     }
   }
@@ -35,12 +38,7 @@ export function LoginPage() {
     if (user && isAdmin) {
       navigate('/admin/overview', { replace: true })
     }
-    // Admin check finished but user is not an admin — reset the form
-    if (loading && !initializing && user && !isAdmin) {
-      setError('This account does not have admin privileges.')
-      setLoading(false)
-    }
-  }, [user, isAdmin, initializing, navigate, loading])
+  }, [user, isAdmin, navigate])
 
   return (
     <main className="grid min-h-screen lg:grid-cols-[1.1fr_0.9fr]">
@@ -101,9 +99,13 @@ export function LoginPage() {
                   required
                 />
               </div>
-              {error ? <p className="text-sm text-destructive">{error}</p> : null}
-              <Button className="w-full" type="submit" disabled={loading}>
-                {loading ? 'Signing in...' : 'Sign in'}
+              {(error || nonAdminBlocked) ? (
+                <p className="text-sm text-destructive">
+                  {nonAdminBlocked ? 'This account does not have admin privileges.' : error}
+                </p>
+              ) : null}
+              <Button className="w-full" type="submit" disabled={loading && !nonAdminBlocked}>
+                {loading && !nonAdminBlocked ? 'Signing in...' : 'Sign in'}
                 <ArrowRight className="size-4" />
               </Button>
             </form>

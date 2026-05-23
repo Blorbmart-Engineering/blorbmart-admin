@@ -17,22 +17,22 @@ type ProductRecord = {
   status?: string
   category?: string
   vendorId?: string
-  createdAt?: any
+  createdAt?: unknown
 }
 
-function formatDate(value: any) {
+function formatDate(value: unknown): string {
   if (!value) return '—'
-  if (typeof value.toDate === 'function') {
-    return value.toDate().toLocaleString()
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>
+    if (typeof obj.toDate === 'function') return (obj.toDate as () => Date)().toLocaleString()
+    if (typeof obj.seconds === 'number') return new Date(obj.seconds * 1000).toLocaleString()
+    if (typeof obj._seconds === 'number') return new Date(obj._seconds * 1000).toLocaleString()
   }
-  if (typeof value.seconds === 'number') {
-    return new Date(value.seconds * 1000).toLocaleString()
+  if (typeof value === 'string' || typeof value === 'number') {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString()
   }
-  if (typeof value._seconds === 'number') {
-    return new Date(value._seconds * 1000).toLocaleString()
-  }
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString()
+  return '—'
 }
 
 function formatPrice(value?: number, currency?: string) {
@@ -84,9 +84,9 @@ export function ProductsPage() {
         if (!active) return
         setProducts(payload?.data?.products || [])
         setHasMore(Boolean(payload?.data?.pagination?.hasMore))
-      } catch (err: any) {
+      } catch (err) {
         if (!active) return
-        setError(err?.message || 'Failed to load products')
+        setError(err instanceof Error ? err.message : 'Failed to load products')
       } finally {
         if (active) setLoading(false)
       }
@@ -119,8 +119,8 @@ export function ProductsPage() {
       link.download = `products-export-${Date.now()}.csv`
       link.click()
       URL.revokeObjectURL(url)
-    } catch (err: any) {
-      setError(err?.message || 'Failed to export products')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export products')
     }
   }
 

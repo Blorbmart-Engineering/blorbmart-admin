@@ -11,28 +11,30 @@ import { useAuth } from '@/lib/auth'
 type VendorRecord = {
   id: string
   vendorId?: string
+  userId?: string
+  uid?: string
   businessName?: string
   ownerName?: string
   email?: string
   phone?: string
   status?: string
   sellerType?: 'normal' | 'food' | string
-  createdAt?: any
+  createdAt?: unknown
 }
 
-function formatDate(value: any) {
+function formatDate(value: unknown): string {
   if (!value) return '—'
-  if (typeof value.toDate === 'function') {
-    return value.toDate().toLocaleString()
+  if (typeof value === 'object' && value !== null) {
+    const obj = value as Record<string, unknown>
+    if (typeof obj.toDate === 'function') return (obj.toDate as () => Date)().toLocaleString()
+    if (typeof obj.seconds === 'number') return new Date(obj.seconds * 1000).toLocaleString()
+    if (typeof obj._seconds === 'number') return new Date(obj._seconds * 1000).toLocaleString()
   }
-  if (typeof value.seconds === 'number') {
-    return new Date(value.seconds * 1000).toLocaleString()
+  if (typeof value === 'string' || typeof value === 'number') {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString()
   }
-  if (typeof value._seconds === 'number') {
-    return new Date(value._seconds * 1000).toLocaleString()
-  }
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString()
+  return '—'
 }
 
 export function VendorsPage() {
@@ -81,7 +83,7 @@ export function VendorsPage() {
         const enrichedVendors = await Promise.all(
           vendors.map(async (vendor: VendorRecord) => {
             try {
-              const userLookupId = (vendor as any).userId || (vendor as any).uid || vendor.id
+              const userLookupId = vendor.userId || vendor.uid || vendor.id
               // Try to get user data to fill missing fields
               const userResponse = await apiFetchAuth(`/api/admin/users/${userLookupId}`)
               if (userResponse.ok) {
@@ -96,7 +98,7 @@ export function VendorsPage() {
                   phone: vendor.phone || user?.phone || '—',
                 }
               }
-            } catch (error) {
+            } catch {
               // If user fetch fails, return vendor as-is
             }
             return vendor
@@ -105,9 +107,9 @@ export function VendorsPage() {
         
         setVendors(enrichedVendors)
         setHasMore(Boolean(payload?.data?.pagination?.hasMore))
-      } catch (err: any) {
+      } catch (err) {
         if (!active) return
-        setError(err?.message || 'Failed to load vendors')
+        setError(err instanceof Error ? err.message : 'Failed to load vendors')
       } finally {
         if (active) setLoading(false)
       }
@@ -139,8 +141,8 @@ export function VendorsPage() {
       link.download = `vendors-export-${Date.now()}.csv`
       link.click()
       URL.revokeObjectURL(url)
-    } catch (err: any) {
-      setError(err?.message || 'Failed to export vendors')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to export vendors')
     }
   }
 
@@ -159,8 +161,8 @@ export function VendorsPage() {
       }
       setVendors((prev) => prev.map((v) => (v.id === vendor.id ? { ...v, status: nextStatus } : v)))
       setSelectedVendor((prev) => (prev && prev.id === vendor.id ? { ...prev, status: nextStatus } : prev))
-    } catch (err: any) {
-      setError(err?.message || 'Failed to update vendor status')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update vendor status')
     } finally {
       setUpdatingStatus(false)
     }

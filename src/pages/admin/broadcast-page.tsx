@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   Bell,
   Mail,
@@ -88,7 +88,7 @@ export function BroadcastPage() {
   const typeLabel = TYPE_OPTIONS.find((t) => t.value === type)?.label ?? type
   const audienceLabel = AUDIENCE_OPTIONS.find((a) => a.value === audience)?.label ?? audience
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     try {
       const res = await apiFetchAuth('/api/admin/broadcast/history')
       const data = await res.json().catch(() => ({}))
@@ -98,9 +98,9 @@ export function BroadcastPage() {
     } finally {
       setLoadingHistory(false)
     }
-  }
+  }, [apiFetchAuth])
 
-  useEffect(() => { fetchHistory() }, [])
+  useEffect(() => { fetchHistory() }, [fetchHistory])
 
   const executeSend = async () => {
     setConfirmOpen(false)
