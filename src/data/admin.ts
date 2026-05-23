@@ -87,11 +87,10 @@ export const adminSections = {
     title: 'User Management',
     description: 'Admin controls all platform users.',
     summary: 'Manage buyers, sellers, and riders from one place.',
-    highlights: ['24,580 total users', '182 KYC reviews', '57 recent suspensions'],
+    highlights: ['24,580 total users', '57 recent suspensions'],
     features: [
       'View all buyers, sellers, riders',
       'Approve or reject seller registrations',
-      'Verify seller identity (KYC)',
       'Suspend or ban users',
       'Reset passwords',
       'Role management',
