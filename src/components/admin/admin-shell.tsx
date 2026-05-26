@@ -68,7 +68,7 @@ export function AdminShell({ title, subtitle, children }: AdminShellProps) {
         <aside className="relative hidden overflow-hidden border-r border-indigo-100/80 bg-white/75 backdrop-blur-2xl dark:border-white/[0.06] dark:bg-white/[0.025] lg:block">
           <div className="pointer-events-none absolute -left-16 -top-24 size-64 rounded-full bg-indigo-400/25 blur-3xl dark:bg-indigo-600/25" />
           <div className="pointer-events-none absolute bottom-10 right-0 size-48 rounded-full bg-violet-500/15 blur-3xl dark:bg-violet-700/20" />
-          <div className="relative h-full overflow-y-auto p-6">
+          <div className="sticky top-0 h-screen overflow-y-auto p-6">
             <SidebarContent />
           </div>
         </aside>

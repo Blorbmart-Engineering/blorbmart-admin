@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { AdminShell } from '@/components/admin/admin-shell'
 import { Badge } from '@/components/ui/badge'
@@ -114,9 +114,11 @@ export function OrdersPage() {
   }, [apiFetchAuth, page, query, status, paymentStatus, buyerId, dateFrom, dateTo])
 
   const [buyerCache, setBuyerCache] = useState<Record<string, { name?: string; email?: string; phone?: string }>>({})
+  const fetchedIdsRef = useRef<Set<string>>(new Set())
 
   const fetchBuyerDetails = useCallback(async (userId: string) => {
-    if (!userId || buyerCache[userId]) return
+    if (!userId || fetchedIdsRef.current.has(userId)) return
+    fetchedIdsRef.current.add(userId)
     try {
       const response = await apiFetchAuth(`/api/admin/users?q=${encodeURIComponent(userId)}&limit=1`)
       if (!response.ok) return
@@ -133,9 +135,10 @@ export function OrdersPage() {
         }))
       }
     } catch (err) {
+      fetchedIdsRef.current.delete(userId)
       console.error('Failed to fetch buyer:', err)
     }
-  }, [apiFetchAuth, buyerCache])
+  }, [apiFetchAuth])
 
   useEffect(() => {
     if (selectedOrder?.userId) {
@@ -145,10 +148,10 @@ export function OrdersPage() {
 
   // Fetch buyer details for all orders in the list
   useEffect(() => {
-    const userIds = orders.map(o => o.userId).filter((id): id is string => !!id && !buyerCache[id])
+    const userIds = orders.map(o => o.userId).filter((id): id is string => !!id && !fetchedIdsRef.current.has(id))
     const uniqueIds = [...new Set(userIds)].slice(0, 10)
     uniqueIds.forEach(id => fetchBuyerDetails(id))
-  }, [orders, buyerCache, fetchBuyerDetails])
+  }, [orders, fetchBuyerDetails])
 
   const handleExport = async () => {
     try {
