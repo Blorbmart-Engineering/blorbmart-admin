@@ -18,6 +18,7 @@ type DeliveryLandmark = {
 
 type SettingsPayload = {
   deliveryFee: number
+  campusDeliveryFee: number
   requireLandmark: boolean
   addressNotes: string
 }
@@ -36,6 +37,7 @@ export function DeliveryPage() {
   const [landmarkForm, setLandmarkForm] = useState(initialLandmarkForm)
   const [settings, setSettings] = useState<SettingsPayload>({
     deliveryFee: 500,
+    campusDeliveryFee: 300,
     requireLandmark: true,
     addressNotes: 'Provide a clear landmark for easier delivery.'
   })
@@ -60,6 +62,7 @@ export function DeliveryPage() {
       if (settingsRes.ok && settingsData?.data) {
         setSettings({
           deliveryFee: Number(settingsData.data.deliveryFee ?? 500),
+          campusDeliveryFee: Number(settingsData.data.campusDeliveryFee ?? 300),
           requireLandmark: Boolean(settingsData.data.requireLandmark ?? true),
           addressNotes: String(settingsData.data.addressNotes ?? '')
         })
@@ -152,7 +155,8 @@ export function DeliveryPage() {
         method: 'PATCH',
         body: JSON.stringify({
           deliveryFee: Number(settings.deliveryFee || 0),
-          requireLandmark: true,
+          campusDeliveryFee: Number(settings.campusDeliveryFee || 0),
+          requireLandmark: settings.requireLandmark,
           addressNotes: settings.addressNotes
         })
       })
@@ -176,11 +180,20 @@ export function DeliveryPage() {
         <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Delivery Rules</CardTitle>
-            <CardDescription>Global fallback fee and required landmark notes.</CardDescription>
+            <CardDescription>Campus and off-campus delivery fees.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Fallback delivery fee (NGN)</Label>
+              <Label>On-campus delivery fee (NGN)</Label>
+              <Input
+                type="number"
+                value={settings.campusDeliveryFee}
+                onChange={(e) => setSettings((prev) => ({ ...prev, campusDeliveryFee: Number(e.target.value || 0) }))}
+              />
+              <p className="text-xs text-muted-foreground">Flat fee charged for any order delivered to a campus location below.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Off-campus fallback delivery fee (NGN)</Label>
               <Input
                 type="number"
                 value={settings.deliveryFee}
@@ -194,7 +207,14 @@ export function DeliveryPage() {
                 onChange={(e) => setSettings((prev) => ({ ...prev, addressNotes: e.target.value }))}
               />
             </div>
-            <p className="text-xs text-muted-foreground">Landmark is enforced for all orders at backend checkout.</p>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={settings.requireLandmark}
+                onChange={(e) => setSettings((prev) => ({ ...prev, requireLandmark: e.target.checked }))}
+              />
+              Require a landmark for off-campus orders
+            </label>
             <Button onClick={saveSettings} disabled={saving}>
               {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Save className="mr-2 size-4" />}
               Save delivery settings
@@ -204,15 +224,15 @@ export function DeliveryPage() {
 
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Landmark Pricing</CardTitle>
-            <CardDescription>Set landmark name and delivery price for faster checkout pricing.</CardDescription>
+            <CardTitle>Campus Locations</CardTitle>
+            <CardDescription>These show up as a dropdown when buyers choose "On Campus" delivery. Price is shown for reference; the flat on-campus fee above is what's charged.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-2xl border border-border/60 p-4">
-              <p className="mb-3 text-sm font-medium">Add delivery landmark</p>
+              <p className="mb-3 text-sm font-medium">Add campus location</p>
               <div className="grid gap-3 sm:grid-cols-3">
                 <Input
-                  placeholder="Landmark name"
+                  placeholder="Location name (e.g. Hostel A)"
                   value={landmarkForm.name}
                   onChange={(e) => setLandmarkForm((prev) => ({ ...prev, name: e.target.value }))}
                 />
@@ -224,7 +244,7 @@ export function DeliveryPage() {
                 />
                 <Button onClick={addLandmark} disabled={saving}>
                   {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Plus className="mr-2 size-4" />}
-                  Add Landmark
+                  Add Location
                 </Button>
               </div>
             </div>
