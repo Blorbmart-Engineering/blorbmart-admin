@@ -4,6 +4,7 @@ import { AdminShell } from '@/components/admin/admin-shell'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/lib/auth'
@@ -44,6 +45,8 @@ export function VendorsPage() {
   const [error, setError] = useState('')
   const [selectedVendor, setSelectedVendor] = useState<VendorRecord | null>(null)
   const [updatingStatus, setUpdatingStatus] = useState(false)
+  const [vendorToDelete, setVendorToDelete] = useState<VendorRecord | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
@@ -143,6 +146,26 @@ export function VendorsPage() {
       URL.revokeObjectURL(url)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to export vendors')
+    }
+  }
+
+  const handleDeleteVendor = async () => {
+    if (!vendorToDelete?.id) return
+    setDeleting(true)
+    try {
+      const response = await apiFetchAuth(`/api/admin/vendors/${vendorToDelete.id}`, {
+        method: 'DELETE'
+      })
+      if (!response.ok) {
+        throw new Error('Failed to delete vendor')
+      }
+      setVendors((prev) => prev.filter((v) => v.id !== vendorToDelete.id))
+      setSelectedVendor((prev) => (prev && prev.id === vendorToDelete.id ? null : prev))
+      setVendorToDelete(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete vendor')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -260,9 +283,14 @@ export function VendorsPage() {
                       </td>
                       <td className="py-3 pr-4">{formatDate(vendor.createdAt)}</td>
                       <td className="py-3 pr-4">
-                        <Button size="sm" variant="secondary" onClick={() => setSelectedVendor(vendor)}>
-                          View
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="secondary" onClick={() => setSelectedVendor(vendor)}>
+                            View
+                          </Button>
+                          <Button size="sm" variant="destructive" onClick={() => setVendorToDelete(vendor)}>
+                            Delete
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -338,10 +366,38 @@ export function VendorsPage() {
               >
                 Mark pending
               </Button>
+              <Button
+                variant="destructive"
+                onClick={() => setVendorToDelete(selectedVendor)}
+                disabled={updatingStatus}
+              >
+                Delete vendor
+              </Button>
             </div>
           </div>
         </div>
       ) : null}
+
+      <Dialog open={Boolean(vendorToDelete)} onOpenChange={(open) => { if (!open) setVendorToDelete(null) }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete vendor permanently?</DialogTitle>
+            <DialogDescription>
+              This will permanently remove{' '}
+              <strong>{vendorToDelete?.businessName || vendorToDelete?.vendorId || 'this vendor'}</strong>{' '}
+              along with their store and all of their products. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setVendorToDelete(null)} disabled={deleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteVendor} disabled={deleting}>
+              {deleting ? 'Deleting...' : 'Delete permanently'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminShell>
   )
 }
