@@ -166,6 +166,7 @@ export function OrdersPage() {
   const [error, setError] = useState('')
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
+  const [reconciling, setReconciling] = useState(false)
 
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
@@ -244,11 +245,10 @@ export function OrdersPage() {
     }
   }, [apiFetchAuth])
 
-  const openOrderDetail = useCallback(async (order: OrderRecord) => {
-    setSelectedOrder(order)
+  const loadOrderDetail = useCallback(async (order: OrderRecord) => {
+    const key = order.orderId || order.id
     setDetailLoading(true)
     try {
-      const key = order.orderId || order.id
       const response = await apiFetchAuth(`/api/admin/orders/${encodeURIComponent(key)}`)
       if (response.ok) {
         const payload = await response.json()
@@ -262,6 +262,36 @@ export function OrdersPage() {
       setDetailLoading(false)
     }
   }, [apiFetchAuth])
+
+  const openOrderDetail = useCallback(async (order: OrderRecord) => {
+    setSelectedOrder(order)
+    await loadOrderDetail(order)
+  }, [loadOrderDetail])
+
+  const reconcilePayment = useCallback(async (order: OrderRecord) => {
+    const key = order.orderId || order.id
+    setReconciling(true)
+    setError('')
+    try {
+      const response = await apiFetchAuth(`/api/admin/orders/${encodeURIComponent(key)}/reconcile-payment`, {
+        method: 'POST'
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to verify payment')
+      }
+      await loadOrderDetail(order)
+      const listResponse = await apiFetchAuth(`/api/admin/orders?limit=${pageSize}&page=${page}`)
+      if (listResponse.ok) {
+        const listPayload = await listResponse.json()
+        setOrders(listPayload?.data?.orders || [])
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to verify payment')
+    } finally {
+      setReconciling(false)
+    }
+  }, [apiFetchAuth, loadOrderDetail, page])
 
   useEffect(() => {
     if (selectedOrder?.userId) {
@@ -693,7 +723,15 @@ export function OrdersPage() {
               ) : null}
             </div>
 
-            <div className="mt-6 flex justify-end">
+            <div className="mt-6 flex justify-end gap-2">
+              {!isPaymentPaid(selectedOrder) && selectedOrder.paymentReference ? (
+                <Button
+                  disabled={reconciling}
+                  onClick={() => reconcilePayment(selectedOrder)}
+                >
+                  {reconciling ? 'Checking Paystack…' : 'Verify payment with Paystack'}
+                </Button>
+              ) : null}
               <Button variant="outline" onClick={() => setSelectedOrder(null)}>Close</Button>
             </div>
           </div>
