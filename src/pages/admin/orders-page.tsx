@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useAuth } from '@/lib/auth'
 
 type OrderItem = {
@@ -41,6 +42,16 @@ type SellerOverride = {
   restaurantAddress?: string
   contactNumber?: string
   email?: string
+}
+
+type SellerOption = {
+  id: string
+  label: string
+  vendorName: string
+  restaurantAddress: string
+  contactNumber: string
+  email: string
+  sellerType?: string | null
 }
 
 type OrderRecord = {
@@ -181,6 +192,9 @@ export function OrdersPage() {
     contactNumber: '',
     email: ''
   })
+  const [sellerOptions, setSellerOptions] = useState<SellerOption[]>([])
+  const [sellerOptionsLoading, setSellerOptionsLoading] = useState(false)
+  const [selectedSellerId, setSelectedSellerId] = useState('')
   const [sellerOverrideSaving, setSellerOverrideSaving] = useState(false)
   const [sellerOverrideMessage, setSellerOverrideMessage] = useState('')
 
@@ -234,6 +248,48 @@ export function OrdersPage() {
     }
   }, [apiFetchAuth, page, query, status, paymentStatus, buyerId, dateFrom, dateTo])
 
+  useEffect(() => {
+    let active = true
+
+    const loadSellers = async () => {
+      setSellerOptionsLoading(true)
+      try {
+        const response = await apiFetchAuth('/api/admin/vendors?limit=500')
+        if (!response.ok) return
+        const payload = await response.json()
+        if (!active) return
+        const sellers = (payload?.data?.vendors || []).map((seller: Record<string, unknown>) => {
+          const id = String(seller.id || seller.vendorId || seller.userId || '').trim()
+          const vendorName = String(seller.businessName || seller.name || seller.storeName || '').trim()
+          const restaurantAddress = String(seller.address || seller.businessAddress || seller.storeAddress || '').trim()
+          const contactNumber = String(seller.businessPhone || seller.phone || seller.contactPhone || seller.phoneNumber || '').trim()
+          const email = String(seller.email || seller.contactEmail || seller.businessEmail || '').trim()
+          const sellerType = String(seller.sellerType || '').trim() || null
+          if (!id) return null
+          return {
+            id,
+            label: `${vendorName || id}${sellerType ? ` (${sellerType})` : ''}`,
+            vendorName,
+            restaurantAddress,
+            contactNumber,
+            email,
+            sellerType
+          } as SellerOption
+        }).filter(Boolean) as SellerOption[]
+        setSellerOptions(sellers)
+      } catch (err) {
+        console.error('Failed to load sellers:', err)
+      } finally {
+        if (active) setSellerOptionsLoading(false)
+      }
+    }
+
+    loadSellers()
+    return () => {
+      active = false
+    }
+  }, [apiFetchAuth])
+
   const [buyerCache, setBuyerCache] = useState<Record<string, { name?: string; email?: string; phone?: string }>>({})
   const fetchedIdsRef = useRef<Set<string>>(new Set())
 
@@ -277,6 +333,7 @@ export function OrdersPage() {
             contactNumber: override.contactNumber || '',
             email: override.email || ''
           })
+          setSelectedSellerId('')
           setSellerOverrideMessage('')
         }
       }
@@ -342,6 +399,18 @@ export function OrdersPage() {
       setSellerOverrideSaving(false)
     }
   }, [apiFetchAuth, loadOrderDetail, selectedOrder, sellerOverrideDraft])
+
+  const applySellerSelection = useCallback((sellerId: string) => {
+    setSelectedSellerId(sellerId)
+    const seller = sellerOptions.find((item) => item.id === sellerId)
+    if (!seller) return
+    setSellerOverrideDraft({
+      vendorName: seller.vendorName || '',
+      restaurantAddress: seller.restaurantAddress || '',
+      contactNumber: seller.contactNumber || '',
+      email: seller.email || ''
+    })
+  }, [sellerOptions])
 
   useEffect(() => {
     if (selectedOrder?.userId) {
@@ -649,12 +718,36 @@ export function OrdersPage() {
                   <div>
                     <p className="text-xs font-medium uppercase text-muted-foreground">Seller Override</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Use this when the historical order is missing vendor details.
+                      Pick a seller from the list, or tweak the fields before saving.
                     </p>
                   </div>
                   <Button onClick={saveSellerOverride} disabled={sellerOverrideSaving || detailLoading}>
                     {sellerOverrideSaving ? 'Saving...' : 'Save override'}
                   </Button>
+                </div>
+
+                <div className="mb-4 space-y-1.5">
+                  <Label htmlFor="seller-override-select">Choose seller</Label>
+                  <Select
+                    value={selectedSellerId}
+                    onValueChange={applySellerSelection}
+                    disabled={sellerOptionsLoading || sellerOverrideSaving}
+                  >
+                    <SelectTrigger id="seller-override-select">
+                      <SelectValue placeholder={sellerOptionsLoading ? 'Loading sellers...' : 'Select a seller'} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {sellerOptions.length ? sellerOptions.map((seller) => (
+                        <SelectItem key={seller.id} value={seller.id}>
+                          {seller.label}
+                        </SelectItem>
+                      )) : (
+                        <SelectItem value="__none" disabled>
+                          No sellers found
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
