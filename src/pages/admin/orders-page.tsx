@@ -36,6 +36,13 @@ type OrderDiagnostics = {
   paystackMode?: 'live' | 'test'
 }
 
+type SellerOverride = {
+  vendorName?: string
+  restaurantAddress?: string
+  contactNumber?: string
+  email?: string
+}
+
 type OrderRecord = {
   id: string
   orderId?: string
@@ -71,6 +78,7 @@ type OrderRecord = {
   storeName?: string
   storeCount?: number
   vendorIds?: string[]
+  sellerOverride?: SellerOverride
   promoCode?: string
   note?: string
   notes?: string
@@ -167,6 +175,14 @@ export function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<OrderRecord | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [reconciling, setReconciling] = useState(false)
+  const [sellerOverrideDraft, setSellerOverrideDraft] = useState<SellerOverride>({
+    vendorName: '',
+    restaurantAddress: '',
+    contactNumber: '',
+    email: ''
+  })
+  const [sellerOverrideSaving, setSellerOverrideSaving] = useState(false)
+  const [sellerOverrideMessage, setSellerOverrideMessage] = useState('')
 
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('all')
@@ -254,6 +270,14 @@ export function OrdersPage() {
         const payload = await response.json()
         if (payload?.data?.order) {
           setSelectedOrder(payload.data.order)
+          const override = payload.data.order.sellerOverride || {}
+          setSellerOverrideDraft({
+            vendorName: override.vendorName || '',
+            restaurantAddress: override.restaurantAddress || '',
+            contactNumber: override.contactNumber || '',
+            email: override.email || ''
+          })
+          setSellerOverrideMessage('')
         }
       }
     } catch (err) {
@@ -292,6 +316,32 @@ export function OrdersPage() {
       setReconciling(false)
     }
   }, [apiFetchAuth, loadOrderDetail, page])
+
+  const saveSellerOverride = useCallback(async () => {
+    if (!selectedOrder) return
+    const key = selectedOrder.orderId || selectedOrder.id
+    setSellerOverrideSaving(true)
+    setSellerOverrideMessage('')
+    try {
+      const response = await apiFetchAuth(`/api/admin/orders/${encodeURIComponent(key)}/seller-override`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(sellerOverrideDraft)
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to save seller override')
+      }
+      setSellerOverrideMessage('Seller override saved.')
+      await loadOrderDetail(selectedOrder)
+    } catch (err) {
+      setSellerOverrideMessage(err instanceof Error ? err.message : 'Failed to save seller override')
+    } finally {
+      setSellerOverrideSaving(false)
+    }
+  }, [apiFetchAuth, loadOrderDetail, selectedOrder, sellerOverrideDraft])
 
   useEffect(() => {
     if (selectedOrder?.userId) {
@@ -592,6 +642,64 @@ export function OrdersPage() {
                     </p>
                   </div>
                 </div>
+              </div>
+
+              <div className="rounded-xl border border-border/60 p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase text-muted-foreground">Seller Override</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Use this when the historical order is missing vendor details.
+                    </p>
+                  </div>
+                  <Button onClick={saveSellerOverride} disabled={sellerOverrideSaving || detailLoading}>
+                    {sellerOverrideSaving ? 'Saving...' : 'Save override'}
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="seller-override-name">Vendor name</Label>
+                    <Input
+                      id="seller-override-name"
+                      value={sellerOverrideDraft.vendorName || ''}
+                      onChange={(event) => setSellerOverrideDraft((prev) => ({ ...prev, vendorName: event.target.value }))}
+                      placeholder="The Daisy Aesthetic"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="seller-override-contact">Contact number</Label>
+                    <Input
+                      id="seller-override-contact"
+                      value={sellerOverrideDraft.contactNumber || ''}
+                      onChange={(event) => setSellerOverrideDraft((prev) => ({ ...prev, contactNumber: event.target.value }))}
+                      placeholder="08012345678"
+                    />
+                  </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label htmlFor="seller-override-address">Restaurant address</Label>
+                    <Input
+                      id="seller-override-address"
+                      value={sellerOverrideDraft.restaurantAddress || ''}
+                      onChange={(event) => setSellerOverrideDraft((prev) => ({ ...prev, restaurantAddress: event.target.value }))}
+                      placeholder="No. 12 Market Road, Osogbo"
+                    />
+                  </div>
+                  <div className="space-y-1.5 md:col-span-2">
+                    <Label htmlFor="seller-override-email">Optional email for resend</Label>
+                    <Input
+                      id="seller-override-email"
+                      type="email"
+                      value={sellerOverrideDraft.email || ''}
+                      onChange={(event) => setSellerOverrideDraft((prev) => ({ ...prev, email: event.target.value }))}
+                      placeholder="vendor@example.com"
+                    />
+                  </div>
+                </div>
+
+                {sellerOverrideMessage ? (
+                  <p className="mt-3 text-sm text-muted-foreground">{sellerOverrideMessage}</p>
+                ) : null}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
