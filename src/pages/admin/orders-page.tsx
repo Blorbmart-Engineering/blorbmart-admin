@@ -196,6 +196,7 @@ export function OrdersPage() {
   const [sellerOptionsLoading, setSellerOptionsLoading] = useState(false)
   const [selectedSellerId, setSelectedSellerId] = useState('')
   const [sellerOverrideSaving, setSellerOverrideSaving] = useState(false)
+  const [sellerOverrideResending, setSellerOverrideResending] = useState(false)
   const [sellerOverrideMessage, setSellerOverrideMessage] = useState('')
 
   const [query, setQuery] = useState('')
@@ -399,6 +400,27 @@ export function OrdersPage() {
       setSellerOverrideSaving(false)
     }
   }, [apiFetchAuth, loadOrderDetail, selectedOrder, sellerOverrideDraft])
+
+  const resendOpsEmail = useCallback(async () => {
+    if (!selectedOrder) return
+    const key = selectedOrder.orderId || selectedOrder.id
+    setSellerOverrideResending(true)
+    setSellerOverrideMessage('')
+    try {
+      const response = await apiFetchAuth(`/api/admin/orders/${encodeURIComponent(key)}/resend-ops-email`, {
+        method: 'POST'
+      })
+      const payload = await response.json()
+      if (!response.ok) {
+        throw new Error(payload?.message || 'Failed to resend email')
+      }
+      setSellerOverrideMessage(payload?.message || 'Email resent.')
+    } catch (err) {
+      setSellerOverrideMessage(err instanceof Error ? err.message : 'Failed to resend email')
+    } finally {
+      setSellerOverrideResending(false)
+    }
+  }, [apiFetchAuth, selectedOrder])
 
   const applySellerSelection = useCallback((sellerId: string) => {
     setSelectedSellerId(sellerId)
@@ -714,16 +736,21 @@ export function OrdersPage() {
               </div>
 
               <div className="rounded-xl border border-border/60 p-4">
-                <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-xs font-medium uppercase text-muted-foreground">Seller Override</p>
                     <p className="text-xs text-muted-foreground mt-1">
                       Pick a seller from the list, or tweak the fields before saving.
                     </p>
                   </div>
-                  <Button onClick={saveSellerOverride} disabled={sellerOverrideSaving || detailLoading}>
-                    {sellerOverrideSaving ? 'Saving...' : 'Save override'}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={resendOpsEmail} disabled={sellerOverrideResending || detailLoading}>
+                      {sellerOverrideResending ? 'Resending...' : 'Resend email'}
+                    </Button>
+                    <Button onClick={saveSellerOverride} disabled={sellerOverrideSaving || detailLoading}>
+                      {sellerOverrideSaving ? 'Saving...' : 'Save override'}
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="mb-4 space-y-1.5">
